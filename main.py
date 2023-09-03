@@ -127,6 +127,14 @@ def add_user_account_id(author_id: str,new_account_id: str):
     with open(Path('workspace','user_logins_stuff.json'),'w') as f:
         json.dump(tokens,f)
 
+leh_current_time = 0 
+def sgt() -> None:
+    global leh_current_time
+    leh_current_time = time.perf_counter()
+
+def istl() -> bool:
+    global leh_current_time
+    return time.perf_counter() - leh_current_time < 14*60
 
 def load_creds() -> Tuple[str,cred_type_hint]: 
     creds = None
@@ -289,32 +297,32 @@ def resign_param_sfo(param_sfo: BytesIO,/,account_id: AccountID):
     param_sfo.seek(0)
 
 async def upload_save_to_ps4(bin_file: Path, white_file: Path, ctx: interactions.SlashContext):
-    await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...',)
+    await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...')
     await loop.run_in_executor(None,ftpupload,ftp,f'sdimg_{psd}',save_folder_ftp,white_file)
     await loop.run_in_executor(None,ftpupload,ftp,f'{psd}.bin',save_folder_ftp,bin_file)
-    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDONE UPLOADING {white_file.name} to PS4',)
+    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDONE UPLOADING {white_file.name} to PS4',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDONE UPLOADING {white_file.name} to PS4')
 
 async def download_save_from_ps4(bin_file: Path, white_file: Path, ctx: interactions.SlashContext):
-    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the new resigned save {white_file.name} from PS4...',)
+    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the new resigned save {white_file.name} from PS4...',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDownloading the new resigned save {white_file.name} from PS4...')
     await loop.run_in_executor(None,ftpdownload,ftp,f'sdimg_{psd}',save_folder_ftp,white_file)
     await loop.run_in_executor(None,ftpdownload,ftp,f'{psd}.bin',save_folder_ftp,bin_file)
-    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDONE DOWNLOADING {white_file.name} from PS4',)
+    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDONE DOWNLOADING {white_file.name} from PS4',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDONE DOWNLOADING {white_file.name} from PS4')
 
 
 async def download_enc_save(file: DriveFileWithParentDir,file2: DriveFileWithParentDir, output_folder: Path,ctx: interactions.SlashContext):
-    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the save_files, {file2[1].get("name")}',)
+    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the save_files, {file2[1].get("name")}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDownloading the save_files, {file2[1].get("name")}')
     await loop.run_in_executor(None,download_google_drive_file,file2[1].get('id'),Path(output_folder,file2[1].get('name')))
     await loop.run_in_executor(None,download_google_drive_file,file[1].get('id'),Path(output_folder,file[1].get('name')))
-    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDONE DOWNLOADING the save_files, {file2[1].get("name")}',)
+    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDONE DOWNLOADING the save_files, {file2[1].get("name")}',) if istl() else await ctx.channel.send(content = f'{SUCCESS_MSG}\n\nDONE DOWNLOADING the save_files, {file2[1].get("name")}')
 
 async def do_resign_one_save(bin_file: Path, white_file: Path,accountid: AccountID,ctx: interactions.SlashContext):
-    await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...',)
+    await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...')
     await upload_save_to_ps4(bin_file,white_file,ctx)
 
     async with MountSave(ps4,mem,uid,psti,psd) as mp:
         if not mp:
             return mp
-        await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',)
+        await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}')
         try:
             param_sfo = BytesIO()
             ftp.retrbinary("RETR mnt/sandbox/NPXS20001_000/savedata0/sce_sys/param.sfo",param_sfo.write)
@@ -345,13 +353,13 @@ async def do_re_region_cheat(ftp: FTP, _,mounted_save_dir: str,/,*,gameid: str):
 
     
 async def do_resign_one_save_plus_cheat(bin_file: Path, white_file: Path,accountid: AccountID,ctx: interactions.SlashContext, cheat_function: callable, **cheat_args):
-    await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...',)
+    await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...')
     await upload_save_to_ps4(bin_file,white_file,ctx)
 
     async with MountSave(ps4,mem,uid,psti,psd) as mp:
         if not mp:
             return mp
-        await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',)
+        await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}')
         try:
             param_sfo = BytesIO()
             ftp.retrbinary("RETR mnt/sandbox/NPXS20001_000/savedata0/sce_sys/param.sfo",param_sfo.write)
@@ -360,7 +368,7 @@ async def do_resign_one_save_plus_cheat(bin_file: Path, white_file: Path,account
         except:
             pass
         ftp.cwd('/')
-        await ctx.edit(content = f'{SUCCESS_MSG}\n\nApplying cheats too {white_file.name}',)
+        await ctx.edit(content = f'{SUCCESS_MSG}\n\nApplying cheats too {white_file.name}',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nApplying cheats too {white_file.name}')
         try:
             await cheat_function(ftp,loop,'/mnt/sandbox/NPXS20001_000/savedata0',**cheat_args)
         except:
@@ -515,9 +523,10 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
     await ctx.defer()
+    sgt()
 
     if check_if_valid_token(token) == ValidToken.NOTVALID:
-        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False)
+        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False) if istl() else await ctx.channel.send(f"Invalid token, {token}. double check your spelling or smth")
         return
 
     if account_id == '0':
@@ -526,7 +535,7 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
     try:
         leh_account_id = AccountID(account_id)
     except ValueError:
-        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command',ephemeral=False)
+        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command')
         return    
 
     google_drive_link_id = extract_drive_folder_id(save_files)
@@ -534,17 +543,17 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
     try:
         your_files = await loop.run_in_executor(None,google_drive_get_sub_dirs,google_drive_link_id,drive_service)
     except:
-        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False)
+        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
         return
     
     valid_saves = get_valid_saves_out_names_only(your_files)
 
     if not valid_saves:
-        await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False)
+        await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
         return
     
     if len(valid_saves) > MAX_RESIGNS_PER_ONCE:
-        await ctx.send(f'theres too many saves to resign, we can only do {MAX_RESIGNS_PER_ONCE} per resign command',ephemeral=False)
+        await ctx.send(f'theres too many saves to resign, we can only do {MAX_RESIGNS_PER_ONCE} per resign command',ephemeral=False) if istl() else await ctx.channel.send(f'theres too many saves to resign, we can only do {MAX_RESIGNS_PER_ONCE} per resign command')
         return
     
     for file,file2 in valid_saves:
@@ -552,12 +561,14 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
         file_metadata2 = drive_service.files().get(fileId=file2[1].get('id'),fields = 'size,name').execute()
 
         if int(file_metadata['size']) != 96:
-            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False)
+            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
             return
         
         if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
-            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False)
+            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
             return
+    
+    await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
     
     clean_workspace()
     # lets go!
@@ -570,29 +581,29 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
             result = await do_resign_one_save(Path(new_path_for_save,file[1].get('name')),Path(new_path_for_save,file2[1].get('name')),leh_account_id,ctx)
 
             if not result:
-                last_msg = await ctx.send('s',ephemeral = False)
-                await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}',ephemeral = False)
-                await ctx.delete(last_msg)
+                last_msg = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
+                await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}')
+                await ctx.delete(last_msg) if istl() else None
                 return
         new_file_name = Path('workspace','user_saves',f'{token}.zip')
-        last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up new resigned saves to {account_id} as {new_file_name.name}')
+        last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up new resigned saves to {account_id} as {new_file_name.name}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nZipping up new resigned saves to {account_id} as {new_file_name.name}')
         await loop.run_in_executor(None,compress,Path('workspace','resigned_saves'),new_file_name)
         remove_token(token)
         if new_file_name.stat().st_size > ATTACHMENT_MAX_FILE_SIZE:
-            last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading new resigned saves to {account_id} as {new_file_name.name} to gdrive')
+            last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading new resigned saves to {account_id} as {new_file_name.name} to gdrive') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading new resigned saves to {account_id} as {new_file_name.name} to gdrive')
             new_url = await loop.run_in_executor(None,google_drive_upload_file,new_file_name,folder_id,drive_service)
             new_url = new_url[1]
             os.remove(new_file_name)
-            await ctx.send(f's',ephemeral=False)
-            await ctx.send(f'<@{ctx.author_id}> here is your resigned save: {new_url}',ephemeral=False)
-            await ctx.delete(last_msg)
+            await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
+            await ctx.send(f'<@{ctx.author_id}> here is your resigned save: {new_url}',ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your resigned save: {new_url}')
+            await ctx.delete(last_msg) if istl() else None
         else:
             olddir = os.getcwd()
             os.chdir(new_file_name.parent)
-            await ctx.send(f's',ephemeral=False)
-            await ctx.send(f'<@{ctx.author_id}> here is your resigned save: ',file=new_file_name.name,ephemeral=False)
+            await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
+            await ctx.send(f'<@{ctx.author_id}> here is your resigned save: ',file=new_file_name.name,ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your resigned save: ',file=new_file_name.name)
             os.chdir(olddir)
-            await ctx.delete(last_msg)
+            await ctx.delete(last_msg) if istl() else None
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
@@ -621,9 +632,10 @@ async def do_dec(ctx: interactions.SlashContext,token: str,save_files: str):
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
     await ctx.defer()
+    sgt()
 
     if check_if_valid_token(token) == ValidToken.NOTVALID:
-        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False)
+        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False) if istl() else await ctx.channel.send(f"Invalid token, {token}. double check your spelling or smth")
         return
 
     google_drive_link_id = extract_drive_folder_id(save_files)
@@ -631,17 +643,17 @@ async def do_dec(ctx: interactions.SlashContext,token: str,save_files: str):
     try:
         your_files = await loop.run_in_executor(None,google_drive_get_sub_dirs,google_drive_link_id,drive_service)
     except:
-        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False)
+        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
         return
     
     valid_saves = get_valid_saves_out_names_only(your_files)
 
     if not valid_saves:
-        await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False)
+        await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
         return
     
     if len(valid_saves) > MAX_RESIGNS_PER_ONCE:
-        await ctx.send(f'theres too many saves to decrypt, we can only do {MAX_RESIGNS_PER_ONCE} per decrypt command',ephemeral=False)
+        await ctx.send(f'theres too many saves to decrypt, we can only do {MAX_RESIGNS_PER_ONCE} per decrypt command',ephemeral=False) if istl() else await ctx.channel.send(f'theres too many saves to decrypt, we can only do {MAX_RESIGNS_PER_ONCE} per decrypt command')
         return
     
     for file,file2 in valid_saves:
@@ -649,12 +661,14 @@ async def do_dec(ctx: interactions.SlashContext,token: str,save_files: str):
         file_metadata2 = drive_service.files().get(fileId=file2[1].get('id'),fields = 'size,name').execute()
 
         if int(file_metadata['size']) != 96:
-            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False)
+            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
             return
         
         if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
-            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False)
+            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
             return
+    
+    await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
     
     clean_workspace()
     # lets go!
@@ -671,32 +685,32 @@ async def do_dec(ctx: interactions.SlashContext,token: str,save_files: str):
                 if not mp:
                     result = mp
                     break
-                await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...')
+                await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...')
                 await loop.run_in_executor(None,download_ftp_folder,ftp,'/mnt/sandbox/NPXS20001_000/savedata0/',Path('workspace','decrypted_saves',f'save_{index}','savedata0'))
         if not result:
-            last_msg = await ctx.send(content= 's',ephemeral=False)
-            await ctx.send(content= f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}',ephemeral = False)
-            await ctx.delete(last_msg)
+            last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+            await ctx.send(content= f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}')
+            await ctx.delete(last_msg) if istl() else None
             return
         new_file_name = Path('workspace','user_saves',f'{token}.zip')
-        last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up decrypted save folder savedata0 as {new_file_name.name}...')
+        last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up decrypted save folder savedata0 as {new_file_name.name}...') if istl() else await ctx.channel.send( f'{SUCCESS_MSG}\n\nZipping up decrypted save folder savedata0 as {new_file_name.name}...')
         await loop.run_in_executor(None,compress,Path('workspace','decrypted_saves'),new_file_name)
         remove_token(token)
         if new_file_name.stat().st_size > ATTACHMENT_MAX_FILE_SIZE:
-            last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading {new_file_name.name} to gdrive...')
+            last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading {new_file_name.name} to gdrive...') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading {new_file_name.name} to gdrive...')
             new_url = await loop.run_in_executor(None,google_drive_upload_file,new_file_name,folder_id,drive_service)
             new_url = new_url[1]
             os.remove(new_file_name)
-            await ctx.send('s',ephemeral=False)
-            await ctx.send(f'<@{ctx.author_id}> here is your decrypted save: {new_url}',ephemeral=False)
-            await ctx.delete(last_msg)
+            await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+            await ctx.send(f'<@{ctx.author_id}> here is your decrypted save: {new_url}',ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your decrypted save: {new_url}')
+            await ctx.delete(last_msg) if istl() else None
         else:
             olddir = os.getcwd()
             os.chdir(new_file_name.parent)
-            await ctx.send('s',ephemeral=False)
-            await ctx.send(f'<@{ctx.author_id}> here is your decrypted save: ',file=new_file_name.name,ephemeral=False)
+            await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+            await ctx.send(f'<@{ctx.author_id}> here is your decrypted save: ',file=new_file_name.name,ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your decrypted save: ',file=new_file_name.name)
             os.chdir(olddir)
-            await ctx.delete(last_msg)
+            await ctx.delete(last_msg) if istl() else None
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
@@ -728,9 +742,10 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
     await ctx.defer()
+    sgt()
 
     if check_if_valid_token(token) == ValidToken.NOTVALID:
-        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False)
+        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False) if istl() else await ctx.channel.send(f"Invalid token, {token}. double check your spelling or smth")
         return
 
     if account_id == '0':
@@ -739,7 +754,7 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
     try:
         leh_account_id = AccountID(account_id)
     except ValueError:
-        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command',ephemeral=False)
+        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command')
         return    
 
     enc_google_drive_link_id = extract_drive_folder_id(encrypted_save_file)
@@ -747,17 +762,17 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
     try:
         your_files = await loop.run_in_executor(None,google_drive_get_sub_dirs,enc_google_drive_link_id,drive_service)
     except:
-        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(encrypted_save_file),ephemeral=False)
+        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(encrypted_save_file),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(encrypted_save_file))
         return
     
     valid_saves = get_valid_saves_out_names_only(your_files)
 
     if not valid_saves:
-        await ctx.send(f'the folder {enc_google_drive_link_id}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False)
+        await ctx.send(f'the folder {enc_google_drive_link_id}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {enc_google_drive_link_id}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
         return
     
     if len(valid_saves) > 1:
-        await ctx.send(f'theres too many saves to encrypt, we can only do {1} per encrypt command',ephemeral=False)
+        await ctx.send(f'theres too many saves to encrypt, we can only do {1} per encrypt command',ephemeral=False) if istl else await ctx.channel.send(f'theres too many saves to encrypt, we can only do {1} per encrypt command')
         return
 
     dec_google_drive_link_id = extract_drive_folder_id(decrypted_save_file)
@@ -765,7 +780,7 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
     try:
         your_files_dec = await loop.run_in_executor(None,google_drive_get_sub_dirs,dec_google_drive_link_id,drive_service)
     except:
-        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(dec_google_drive_link_id),ephemeral=False)
+        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(dec_google_drive_link_id),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(dec_google_drive_link_id))
         return
 
     temp_your_files_dec = []
@@ -782,11 +797,11 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
 
     
     if not your_files_dec:
-        await ctx.send(f'the folder {decrypted_save_file} did not have any decrypted saves in it, did you get them from a ps4? it needs to be in a savedata0 folder!',ephemeral=False)
+        await ctx.send(f'the folder {decrypted_save_file} did not have any decrypted saves in it, did you get them from a ps4? it needs to be in a savedata0 folder!',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {decrypted_save_file} did not have any decrypted saves in it, did you get them from a ps4? it needs to be in a savedata0 folder!')
         return
     
     if len(your_files_dec) > 1:
-        await ctx.send(f'Theres too many decrypted saves to encrypt, we can only do {1} per encrypt command',ephemeral=False)
+        await ctx.send(f'Theres too many decrypted saves to encrypt, we can only do {1} per encrypt command',ephemeral=False) if istl() else ctx.channel.send(f'Theres too many decrypted saves to encrypt, we can only do {1} per encrypt command')
         return
     
     for file,file2 in valid_saves:
@@ -794,16 +809,16 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
         file_metadata2 = drive_service.files().get(fileId=file2[1].get('id'),fields = 'size,name').execute()
 
         if int(file_metadata['size']) != 96:
-            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False)
+            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
             return
         
         if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
-            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False)
+            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
             return
     
 
     
-    await ctx.send(SUCCESS_MSG,ephemeral=False)
+    await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
     
     clean_workspace()
     # lets go!
@@ -815,7 +830,9 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
             resultt = await loop.run_in_executor(None,get_folder_size,your_files_dec[index][0].get('id'),drive_service)
 
             if resultt > FILE_SIZE_TOTAL_LIMIT:
-                await ctx.send(f'the decrypted saves files {decrypted_save_file} is too big')
+                last_msg = await ctx.send('s',ephemeral = False)
+                await ctx.edit(content = f'<@{ctx.author_id}>. the decrypted saves files {decrypted_save_file} is too big') if istl() else ctx.channel.send(f'<@{ctx.author_id}>. the decrypted saves files {decrypted_save_file} is too big')
+                await ctx.delete(last_msg) if istl() else None
                 return
 
             dec_folder = your_files_dec[index][0]
@@ -827,7 +844,7 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
             await download_enc_save(file,file2,new_path_for_save,ctx)
             await upload_save_to_ps4(bin_file,white_file,ctx)
 
-            await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the decrypted save files ')
+            await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the decrypted save files ') if istl() else ctx.channel.send(content = f'{SUCCESS_MSG}\n\nDownloading the decrypted save files ')
 
             await loop.run_in_executor(None,download_folder,dec_folder.get('id'),Path('workspace','dump_the_dec_save',f'save_{index}'),drive_service)
             ftp.cwd('/')
@@ -835,7 +852,7 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
                 if not mp:
                     result = mp
                     break
-                await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',)
+                await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',) if istl() else await ctx.channel.send(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}')
                 param_sfo = BytesIO()
                 try:
                     ftp.retrbinary("RETR mnt/sandbox/NPXS20001_000/savedata0/sce_sys/param.sfo",param_sfo.write)
@@ -845,9 +862,9 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
                     pass
                 if clean_encrypted_file:
                     delete_folder_contents(ftp,'/mnt/sandbox/NPXS20001_000/savedata0')
-                await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading the decrypted save files to {white_file.name}')
+                await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading the decrypted save files to {white_file.name}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading the decrypted save files to {white_file.name}')
                 await loop.run_in_executor(None,upload_folder_contents,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','dump_the_dec_save',f'save_{index}'))
-                await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',)
+                await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}')
                 try:
                     ftp.retrbinary("RETR mnt/sandbox/NPXS20001_000/savedata0/sce_sys/param.sfo",param_sfo.write)
                     resign_param_sfo(param_sfo,leh_account_id)
@@ -863,7 +880,7 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
                 await loop.run_in_executor(None,upload_folder_contents,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',resource_path(Path('savemount_py','backup_dec_save')))
                 a = await unmount_save(ps4,mem,mp)
                 if a:
-                    await ctx.send('WARNING, THE HOST NEEDS TO REBOOT THE BOT')
+                    await ctx.channel.send('WARNING, THE HOST NEEDS TO REBOOT THE BOT')
                     breakpoint()
                 
             except Exception:
@@ -872,33 +889,33 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
             await download_save_from_ps4(bin_file,white_file,ctx)
 
         if not result:
-            last_msg = await ctx.send('s',ephemeral = False)
-            await ctx.edit(content= f'<@{ctx.author_id}>. We couldnt mount the encrypted save, reason {result.error_code}',)
-            await ctx.delete(last_msg)
+            last_msg = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
+            await ctx.edit(content= f'<@{ctx.author_id}>. We couldnt mount the encrypted save, reason {result.error_code}',) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt mount the encrypted save, reason {result.error_code}')
+            await ctx.delete(last_msg) if istl() else None
             return
 
         new_file_name = Path('workspace','user_saves',f'{token}.zip')
-        last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping new encrypted save as {new_file_name.name}')
+        last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping new encrypted save as {new_file_name.name}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nZipping new encrypted save as {new_file_name.name}')
         await loop.run_in_executor(None,compress,Path('workspace','new_encrypted_save'),new_file_name)
         remove_token(token)
         if new_file_name.stat().st_size > ATTACHMENT_MAX_FILE_SIZE:
-            last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading new encrypted save {new_file_name.name} to gdrive')
+            last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading new encrypted save {new_file_name.name} to gdrive') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading new encrypted save {new_file_name.name} to gdrive')
             
             new_url = await loop.run_in_executor(None,google_drive_upload_file,new_file_name,folder_id,drive_service)
             new_url = new_url[1]
             os.remove(new_file_name)
-            last_msg2 = await ctx.send('s',ephemeral = False)
-            await ctx.send(f'<@{ctx.author_id}> here is your encrypted save: {new_url}',ephemeral=False)
-            await ctx.delete(last_msg)
-            await ctx.delete(last_msg2)
+            last_msg2 = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
+            await ctx.send(f'<@{ctx.author_id}> here is your encrypted save: {new_url}',ephemeral=False) if istl() else  await ctx.channel.send(f'<@{ctx.author_id}> here is your encrypted save: {new_url}')
+            await ctx.delete(last_msg) if istl() else None
+            await ctx.delete(last_msg2) if istl() else None
         else:
             olddir = os.getcwd()
             os.chdir(new_file_name.parent)
-            last_msg2 = await ctx.send('s',ephemeral = False)
-            await ctx.send(f'<@{ctx.author_id}> here is your encrypted save: ',file=new_file_name.name,ephemeral=False)
+            last_msg2 = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
+            await ctx.send(f'<@{ctx.author_id}> here is your encrypted save: ',file=new_file_name.name,ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your encrypted save: ',file=new_file_name.name)
             os.chdir(olddir)
-            await ctx.delete(last_msg)
-            await ctx.delete(last_msg2)
+            await ctx.delete(last_msg) if istl() else None
+            await ctx.delete(last_msg2) if istl() else None
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
@@ -1013,9 +1030,10 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
     await ctx.defer()
+    sgt()
 
     if check_if_valid_token(token) == ValidToken.NOTVALID:
-        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False)
+        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False) if istl() else ctx.channel.send(f"Invalid token, {token}. double check your spelling or smth")
         return
     
     if account_id == '0':
@@ -1024,7 +1042,7 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
     try:
         leh_account_id = AccountID(account_id)
     except ValueError:
-        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command',ephemeral=False)
+        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command')
         return    
 
     google_drive_link_id = extract_drive_folder_id(save_files)
@@ -1032,17 +1050,17 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
     try:
         your_files = await loop.run_in_executor(None,google_drive_get_sub_dirs,google_drive_link_id,drive_service)
     except:
-        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False)
+        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
         return
     
     valid_saves = get_valid_saves_out_names_only(your_files)
 
     if not valid_saves:
-        await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False)
+        await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
         return
     
     if len(valid_saves) > MAX_RESIGNS_PER_ONCE:
-        await ctx.send(f'theres too many saves to apply cheats too we can only do {MAX_RESIGNS_PER_ONCE} per cheat command',ephemeral=False)
+        await ctx.send(f'theres too many saves to apply cheats too we can only do {MAX_RESIGNS_PER_ONCE} per cheat command',ephemeral=False) if istl() else await ctx.channel.send(f'theres too many saves to apply cheats too we can only do {MAX_RESIGNS_PER_ONCE} per cheat command')
         return
     
     for file,file2 in valid_saves:
@@ -1050,12 +1068,14 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
         file_metadata2 = drive_service.files().get(fileId=file2[1].get('id'),fields = 'size,name').execute()
 
         if int(file_metadata['size']) != 96:
-            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False)
+            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
             return
         
         if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
-            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False)
+            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
             return
+    
+    await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
     
     clean_workspace()
     # lets go!
@@ -1063,7 +1083,7 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
     try:
         for variable_name, variable in cheat_agurments.items():
             if isinstance(variable,interactions.Attachment):
-                await ctx.edit(content = f'Downloading custom cheat file {variable_name}...')
+                await ctx.edit(content = f'Downloading custom cheat file {variable_name}...') if istl() else await ctx.channel.send(content = f'Downloading custom cheat file {variable_name}...')
                 await download_file(variable.url,Path('workspace',variable_name))
                 cheat_agurments[variable_name] = Path('workspace',variable_name)    
         
@@ -1078,35 +1098,35 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
             result = await do_resign_one_save_plus_cheat(Path(new_path_for_save,file[1].get('name')),Path(new_path_for_save,file2[1].get('name')),leh_account_id,ctx,custom_cheat_function,**cheat_agurments)
 
             if isinstance(result,str):
-                last_msg = await ctx.send('s',ephemeral=False)
-                await ctx.send(content= f'<@{ctx.author_id}>. We couldnt apply the cheats to your save, reason:\n\n{result}',ephemeral = False)
-                await ctx.delete(last_msg)
+                last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+                await ctx.send(content= f'<@{ctx.author_id}>. We couldnt apply the cheats to your save, reason:\n\n{result}',ephemeral = False) if istl() else await ctx.channel.send(content= f'<@{ctx.author_id}>. We couldnt apply the cheats to your save, reason:\n\n{result}')
+                await ctx.delete(last_msg) if istl() else None
                 return                
 
             if not result:
-                last_msg = await ctx.send('s',ephemeral=False)
-                await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}',ephemeral = False)
-                await ctx.delete(last_msg)
+                last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+                await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}')
+                await ctx.delete(last_msg) if istl() else None
                 return
         new_file_name = Path('workspace','user_saves',f'{token}.zip')
-        last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up new saves to with cheats and resigned to {account_id} as {new_file_name.name}')
+        last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up new saves to with cheats and resigned to {account_id} as {new_file_name.name}') if istl() else await ctx.channel.send( f'{SUCCESS_MSG}\n\nZipping up new saves to with cheats and resigned to {account_id} as {new_file_name.name}')
         await loop.run_in_executor(None,compress,Path('workspace','save_to_apply_cheats'),new_file_name)
         remove_token(token)
         if new_file_name.stat().st_size > ATTACHMENT_MAX_FILE_SIZE:
-            last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading new saves to with cheats and resigned to {account_id} as {new_file_name.name} to gdrive')
+            last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading new saves to with cheats and resigned to {account_id} as {new_file_name.name} to gdrive') if istl() else await ctx.channel.send( f'{SUCCESS_MSG}\n\nUploading new saves to with cheats and resigned to {account_id} as {new_file_name.name} to gdrive')
             new_url = await loop.run_in_executor(None,google_drive_upload_file,new_file_name,folder_id,drive_service)
             new_url = new_url[1]
             os.remove(new_file_name)
-            await ctx.send(f's',ephemeral=False)
-            await ctx.send(f'<@{ctx.author_id}> here is your save with cheats: {new_url}',ephemeral=False)
-            await ctx.delete(last_msg)
+            await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+            await ctx.send(f'<@{ctx.author_id}> here is your save with cheats: {new_url}',ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your save with cheats: {new_url}')
+            await ctx.delete(last_msg) if istl() else None
         else:
             olddir = os.getcwd()
             os.chdir(new_file_name.parent)
-            await ctx.send('s',ephemeral=False)
-            await ctx.send(f'<@{ctx.author_id}> here your save with cheats: ',file=new_file_name.name,ephemeral=False)
+            await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+            await ctx.send(f'<@{ctx.author_id}> here your save with cheats: ',file=new_file_name.name,ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here your save with cheats: ',file=new_file_name.name)
             os.chdir(olddir)
-            await ctx.delete(last_msg)
+            await ctx.delete(last_msg) if istl() else None
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
