@@ -1,0 +1,1 @@
+from custom_cheats.shantae_pirate_curse_cheats.scurse_cheats import set_gems

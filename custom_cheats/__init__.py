@@ -1,0 +1,3 @@
+import custom_cheats.shantae_pirate_curse_cheats
+import custom_cheats.black_ops_cold_war
+import custom_cheats.red_dead_redemption_2

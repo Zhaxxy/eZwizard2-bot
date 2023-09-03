@@ -1,0 +1,1 @@
+from custom_cheats.black_ops_cold_war.cold_war_cheats import set_wonder_weapon
