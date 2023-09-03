@@ -50,6 +50,11 @@ class DriveFileWithParentDir(NamedTuple):
     parent_dir: dict
     file: dict
 
+class TempThingIdk(NamedTuple):
+    error_code: int
+    def __bool__(self):
+        return False
+    
 async def download_file(url, destination: Path):
     """
     function by chatGPT
@@ -852,20 +857,13 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
                 if not mp:
                     result = mp
                     break
-                await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',) if istl() else await ctx.channel.send(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}')
-                param_sfo = BytesIO()
-                try:
-                    ftp.retrbinary("RETR mnt/sandbox/NPXS20001_000/savedata0/sce_sys/param.sfo",param_sfo.write)
-                    resign_param_sfo(param_sfo,leh_account_id)
-                    ftp.storbinary("STOR mnt/sandbox/NPXS20001_000/savedata0/sce_sys/param.sfo",param_sfo)
-                except:
-                    pass
                 if clean_encrypted_file:
                     delete_folder_contents(ftp,'/mnt/sandbox/NPXS20001_000/savedata0')
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading the decrypted save files to {white_file.name}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading the decrypted save files to {white_file.name}')
                 await loop.run_in_executor(None,upload_folder_contents,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','dump_the_dec_save',f'save_{index}'))
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}')
                 try:
+                    param_sfo = BytesIO()
                     ftp.retrbinary("RETR mnt/sandbox/NPXS20001_000/savedata0/sce_sys/param.sfo",param_sfo.write)
                     resign_param_sfo(param_sfo,leh_account_id)
                     ftp.storbinary("STOR mnt/sandbox/NPXS20001_000/savedata0/sce_sys/param.sfo",param_sfo)
@@ -876,9 +874,11 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
             try:
                 ftp.cwd('/mnt/sandbox/NPXS20001_000/savedata0')
                 ftp.cwd('/')
+                unmount_error = await unmount_save(ps4,mem,mp)
                 delete_folder_contents(ftp,'/mnt/sandbox/NPXS20001_000/savedata0',dont_delete_sce_sys=False)
                 await loop.run_in_executor(None,upload_folder_contents,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',resource_path(Path('savemount_py','backup_dec_save')))
                 a = await unmount_save(ps4,mem,mp)
+                result = TempThingIdk(unmount_error)
                 if a:
                     await ctx.channel.send('WARNING, THE HOST NEEDS TO REBOOT THE BOT')
                     breakpoint()
@@ -886,11 +886,15 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
             except Exception:
                 pass
             
-            await download_save_from_ps4(bin_file,white_file,ctx)
+            if result:
+                await download_save_from_ps4(bin_file,white_file,ctx)
 
         if not result:
+            msg = 'mount the encrypted save'
+            if isinstance(result,TempThingIdk):
+                msg = 'use your decrypted save'
             last_msg = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
-            await ctx.edit(content= f'<@{ctx.author_id}>. We couldnt mount the encrypted save, reason {result.error_code}',) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt mount the encrypted save, reason {result.error_code}')
+            await ctx.send(content= f'<@{ctx.author_id}>. We couldnt {msg}, reason {result.error_code}',) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt mount the encrypted save, reason {result.error_code}')
             await ctx.delete(last_msg) if istl() else None
             return
 
