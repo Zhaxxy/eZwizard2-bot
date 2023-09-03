@@ -1213,7 +1213,7 @@ async def cold_war_set_wonder_weapon(ctx: interactions.SlashContext,save_files: 
     cheats_args['wonder_weapon'] = bytes.fromhex(cheats_args['wonder_weapon'])
     await _do_the_cheats(ctx,save_files,account_id,token,black_ops_cold_war.set_wonder_weapon,**cheats_args)
 
-rdr2 = cheats_base_command.group(name="red_dead_redemption_2", description="Cheats for Call of Duty: Black Ops Cold War")
+rdr2 = cheats_base_command.group(name="red_dead_redemption_2", description="Cheats for Red Dead Redemption 2")
 @rdr2.subcommand(sub_cmd_name="change_money", sub_cmd_description="Change your main money!")
 @token_option
 @cheats_base_save_files
