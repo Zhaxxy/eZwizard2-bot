@@ -3,7 +3,6 @@ A discord bot that connects to your jb ps4 to allow other people to do save thin
 
 # TODO
 - [ ] add more custom cheats for games
-
 - [ ] properly add my modules to the repo (rdr2_enc_dec and SCurseDecPS4)
 - [ ] make a set up guide
 - [ ] make this a more formal project
