@@ -26,7 +26,7 @@ def _crypt_rdr2_ps4_save(rdr2_save: BytesIO,/,*,enc_data_offset: int,do_enc: boo
     crypted_data = rdr2_save.read()
     
     rdr2_save.seek(0)
-    if enc_data_offset == 0x120 and do_enc:
+    if do_enc:
         for chunk in [m.start() for m in re.finditer(b'CHKS\x00', crypted_data)]: # calculate checksums for each chunk
             rdr2_save.seek(enc_data_offset + chunk + 4,0) # 4 bytes for the magic CHKS
             header_size = struct.unpack('>I',rdr2_save.read(4))[0]
