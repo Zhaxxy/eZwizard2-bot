@@ -16,6 +16,7 @@ from ftplib import FTP,error_reply
 from io import BytesIO, FileIO
 from shutil import rmtree
 from traceback import format_exc
+from datetime import datetime
 
 from frozendict import frozendict
 import aiohttp
@@ -72,50 +73,12 @@ async def download_file(url, destination: Path):
                 raise Exception(f"Error: Unable to download file from {url}, status code: {response.status}")
 
 
-def add_new_token(token: str):
-    token = token.upper()
-    tokens['not_used'].append(token)
-    with open(Path('workspace','user_logins_stuff.json'),'w') as f:
-        json.dump(tokens,f)
-
-def generate_token() -> str:
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
-
-def check_if_valid_token(token: str):
-    token = token.upper()
-    if token in tokens['perma_tokens']:
-        return ValidToken.VALID
-    if token in tokens['used']:
-        return ValidToken.VALID
-    elif token in tokens['not_used']:
-        return ValidToken.ALREADYUSED
-    else:
-        return ValidToken.NOTVALID
-
-def move_token_to_use(token: str):
-    token = token.upper()
-    if token in tokens['perma_tokens']:
-        return
-    tokens['used'].remove(token)
-    tokens['not_used'].append(token)
-    with open(Path('workspace','user_logins_stuff.json'),'w') as f:
-        json.dump(tokens,f)
-
-def remove_token(token: str):
-    token = token.upper()
-    if token in tokens['perma_tokens']:
-        return
-    tokens['not_used'].remove(token)
-    with open(Path('workspace','user_logins_stuff.json'),'w') as f:
-        json.dump(tokens,f)
-
-
 def initialise_database():
     try:
         with open(Path('workspace','user_logins_stuff.json'),'r') as f:
             return json.load(f)
     except Exception:
-        return {'not_used':[],'used':[],'perma_tokens':['WAT'],'user_account_ids':{}}
+        return {'user_account_ids':{}}
 
 
 def get_user_account_id(author_id: str):
@@ -385,12 +348,6 @@ async def do_resign_one_save_plus_cheat(bin_file: Path, white_file: Path,account
     return True
 
 
-class ValidToken(Enum):
-    NOTVALID = 0
-    VALID = 1
-    ALREADYUSED = 2
-
-
 def silentfolder(thesussydir): #deletes a folder, if it doesnt find the folder then it does nothing (no throwing error!)
     if os.path.exists(thesussydir) and os.path.isdir(thesussydir):   
         rmtree(thesussydir)
@@ -462,17 +419,7 @@ def download_google_drive_file(google_drive_id: str,zip_path: Path = Path('works
                 pass#await ctx.edit(content = f'{SUCCESS_MSG}\n\n progress download {progresss}')
             else:
                 pass#await ctx.edit(content = f'{SUCCESS_MSG}\n\n progress download {progresss}')
-def get_server_url() -> str:
-    return 'http://127.0.0.1:5000'
 
-
-def token_option(func):
-    return interactions.slash_option(
-    name="token",
-    description="a token to do the save thing",
-    required=True,
-    opt_type=interactions.OptionType.STRING
-    )(func)
 
 def resign_saves_option_req(func):
     return interactions.slash_option(
@@ -514,7 +461,6 @@ async def my_account_id(ctx: interactions.SlashContext,psn_name: str):
     await ctx.delete(last_msg)
     
 @interactions.slash_command(name="resign",description=f"Resign a save file to an account id (max {MAX_RESIGNS_PER_ONCE} saves per command)")
-@token_option
 @interactions.slash_option(
     name="save_files",
     description='a google drive folder link which contain your saves',
@@ -522,17 +468,14 @@ async def my_account_id(ctx: interactions.SlashContext,psn_name: str):
     opt_type=interactions.OptionType.STRING
     )
 @resign_saves_option_req
-async def resign_discord_command(ctx: interactions.SlashContext, save_files: str, account_id: str, token: str):
+async def resign_discord_command(ctx: interactions.SlashContext, save_files: str, account_id: str):
     global is_bot_in_use
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
     await ctx.defer()
     sgt()
-
-    if check_if_valid_token(token) == ValidToken.NOTVALID:
-        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False) if istl() else await ctx.channel.send(f"Invalid token, {token}. double check your spelling or smth")
-        return
+    discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
 
     if account_id == '0':
         account_id = get_user_account_id(ctx.author_id)
@@ -590,10 +533,9 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
                 await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}')
                 await ctx.delete(last_msg) if istl() else None
                 return
-        new_file_name = Path('workspace','user_saves',f'{token}.zip')
+        new_file_name = Path('workspace','user_saves',f'{discord_file_name}.zip')
         last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up new resigned saves to {account_id} as {new_file_name.name}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nZipping up new resigned saves to {account_id} as {new_file_name.name}')
         await loop.run_in_executor(None,compress,Path('workspace','resigned_saves'),new_file_name)
-        remove_token(token)
         if new_file_name.stat().st_size > ATTACHMENT_MAX_FILE_SIZE:
             last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading new resigned saves to {account_id} as {new_file_name.name} to gdrive') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading new resigned saves to {account_id} as {new_file_name.name} to gdrive')
             new_url = await loop.run_in_executor(None,google_drive_upload_file,new_file_name,folder_id,drive_service)
@@ -616,34 +558,21 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
         is_bot_in_use = False
 
 
-@interactions.slash_command(name="token",description=f"Get a shiny fresh new token to use with the bot!")
-async def temp_get_token(ctx: interactions.SlashContext):
-    await ctx.defer()
-    new_tokne = generate_token()
-    add_new_token(new_tokne)
-
-    await ctx.send(f"Your new token is: {new_tokne}",ephemeral=False)
-
-
 @interactions.slash_command(name="decrypt",description=f"Decrypt your save files! (max {MAX_RESIGNS_PER_ONCE} save per command)")
-@token_option
 @interactions.slash_option(
     name="save_files",
     description="a google drive folder link containing your encrypted saves to be decrpyted",
     required=True,
     opt_type=interactions.OptionType.STRING
     )
-async def do_dec(ctx: interactions.SlashContext,token: str,save_files: str):
+async def do_dec(ctx: interactions.SlashContext,save_files: str):
     global is_bot_in_use
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
     await ctx.defer()
     sgt()
-
-    if check_if_valid_token(token) == ValidToken.NOTVALID:
-        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False) if istl() else await ctx.channel.send(f"Invalid token, {token}. double check your spelling or smth")
-        return
+    discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
 
     google_drive_link_id = extract_drive_folder_id(save_files)
     
@@ -699,10 +628,9 @@ async def do_dec(ctx: interactions.SlashContext,token: str,save_files: str):
             await ctx.send(content= f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}')
             await ctx.delete(last_msg) if istl() else None
             return
-        new_file_name = Path('workspace','user_saves',f'{token}.zip')
+        new_file_name = Path('workspace','user_saves',f'{discord_file_name}.zip')
         last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up decrypted save folder savedata0 as {new_file_name.name}...') if istl() else await ctx.channel.send( f'{SUCCESS_MSG}\n\nZipping up decrypted save folder savedata0 as {new_file_name.name}...')
         await loop.run_in_executor(None,compress,Path('workspace','decrypted_saves'),new_file_name)
-        remove_token(token)
         if new_file_name.stat().st_size > ATTACHMENT_MAX_FILE_SIZE:
             last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading {new_file_name.name} to gdrive...') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading {new_file_name.name} to gdrive...')
             new_url = await loop.run_in_executor(None,google_drive_upload_file,new_file_name,folder_id,drive_service)
@@ -725,7 +653,6 @@ async def do_dec(ctx: interactions.SlashContext,token: str,save_files: str):
         is_bot_in_use = False
 
 @interactions.slash_command(name="encrypt",description=f"Encrypt your save files! (max 1 save per command), only jb ps4 decrypted saves!")
-@token_option
 @interactions.slash_option(
     name="decrypted_save_file",
     description="a google drive folder link containing the savedata0 decrypted save folder",
@@ -745,17 +672,14 @@ async def do_dec(ctx: interactions.SlashContext,token: str,save_files: str):
     required=False,
     opt_type=interactions.OptionType.BOOLEAN
 )
-async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: str ,encrypted_save_file: str ,account_id: str, clean_encrypted_file: bool = False):
+async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encrypted_save_file: str ,account_id: str, clean_encrypted_file: bool = False):
     global is_bot_in_use
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
     await ctx.defer()
     sgt()
-
-    if check_if_valid_token(token) == ValidToken.NOTVALID:
-        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False) if istl() else await ctx.channel.send(f"Invalid token, {token}. double check your spelling or smth")
-        return
+    discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
 
     if account_id == '0':
         account_id = get_user_account_id(ctx.author_id)
@@ -902,10 +826,9 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
             await ctx.delete(last_msg) if istl() else None
             return
 
-        new_file_name = Path('workspace','user_saves',f'{token}.zip')
+        new_file_name = Path('workspace','user_saves',f'{discord_file_name}.zip')
         last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping new encrypted save as {new_file_name.name}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nZipping new encrypted save as {new_file_name.name}')
         await loop.run_in_executor(None,compress,Path('workspace','new_encrypted_save'),new_file_name)
-        remove_token(token)
         if new_file_name.stat().st_size > ATTACHMENT_MAX_FILE_SIZE:
             last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading new encrypted save {new_file_name.name} to gdrive') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading new encrypted save {new_file_name.name} to gdrive')
             
@@ -1033,17 +956,14 @@ def get_valid_saves_out_names_only(your_files: List[DriveFileWithParentDir]) -> 
                     valid_saves.append((file,file2))
     return valid_saves
 
-async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_id: str,token: str,custom_cheat_function: callable,**cheat_agurments):
+async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_id: str,custom_cheat_function: callable,**cheat_agurments):
     global is_bot_in_use
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
     await ctx.defer()
     sgt()
-
-    if check_if_valid_token(token) == ValidToken.NOTVALID:
-        await ctx.send(f"Invalid token, {token}. double check your spelling or smth",ephemeral=False) if istl() else ctx.channel.send(f"Invalid token, {token}. double check your spelling or smth")
-        return
+    discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
     
     if account_id == '0':
         account_id = get_user_account_id(ctx.author_id)
@@ -1117,10 +1037,9 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
                 await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}')
                 await ctx.delete(last_msg) if istl() else None
                 return
-        new_file_name = Path('workspace','user_saves',f'{token}.zip')
+        new_file_name = Path('workspace','user_saves',f'{discord_file_name}.zip')
         last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up new saves to with cheats and resigned to {account_id} as {new_file_name.name}') if istl() else await ctx.channel.send( f'{SUCCESS_MSG}\n\nZipping up new saves to with cheats and resigned to {account_id} as {new_file_name.name}')
         await loop.run_in_executor(None,compress,Path('workspace','save_to_apply_cheats'),new_file_name)
-        remove_token(token)
         if new_file_name.stat().st_size > ATTACHMENT_MAX_FILE_SIZE:
             last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading new saves to with cheats and resigned to {account_id} as {new_file_name.name} to gdrive') if istl() else await ctx.channel.send( f'{SUCCESS_MSG}\n\nUploading new saves to with cheats and resigned to {account_id} as {new_file_name.name} to gdrive')
             new_url = await loop.run_in_executor(None,google_drive_upload_file,new_file_name,folder_id,drive_service)
@@ -1157,7 +1076,6 @@ cheats_base_command = interactions.SlashCommand(name="cheats", description="Comm
 # lets define the custom cheats now!
 
 @interactions.slash_command(name="re_region",description=f"Change the region of your save! (max {MAX_RESIGNS_PER_ONCE} save per command)")
-@token_option
 @cheats_base_save_files
 @resign_saves_option_req
 @interactions.slash_option(
@@ -1166,17 +1084,16 @@ cheats_base_command = interactions.SlashCommand(name="cheats", description="Comm
     required=True,
     opt_type=interactions.OptionType.STRING
     )
-async def re_region(ctx: interactions.SlashContext,save_files: str,token: str,account_id: str, **cheats_args):
+async def re_region(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
     cheats_args['gameid'] = cheats_args['gameid'].upper()
     if not is_ps4_title_id(cheats_args['gameid']):
         await ctx.send(f'Invalid gameid {cheats_args["gameid"]}')
         return
-    await _do_the_cheats(ctx,save_files,account_id,token,do_re_region_cheat,**cheats_args)
+    await _do_the_cheats(ctx,save_files,account_id,do_re_region_cheat,**cheats_args)
 
 
 shantae_curse = cheats_base_command.group(name="shantae_curse", description="Cheats for Shantae and the Pirate's Curse")
 @shantae_curse.subcommand(sub_cmd_name="set_gems", sub_cmd_description="Change your gems!")
-@token_option
 @cheats_base_save_files
 @resign_saves_option_req
 @interactions.slash_option(
@@ -1196,13 +1113,12 @@ shantae_curse = cheats_base_command.group(name="shantae_curse", description="Che
         interactions.SlashCommandChoice(name="File 3", value=3)
     ]
     )
-async def scurse_set_gems(ctx: interactions.SlashContext,save_files: str,token: str,account_id: str, **cheats_args):
-    await _do_the_cheats(ctx,save_files,account_id,token,shantae_pirate_curse_cheats.set_gems,**cheats_args)
+async def scurse_set_gems(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
+    await _do_the_cheats(ctx,save_files,account_id,shantae_pirate_curse_cheats.set_gems,**cheats_args)
 
 
 bo_cold_war = cheats_base_command.group(name="black_ops_cold_war", description="Cheats for Call of Duty: Black Ops Cold War")
 @bo_cold_war.subcommand(sub_cmd_name="set_wonder_weapon", sub_cmd_description="Change your weapon!")
-@token_option
 @cheats_base_save_files
 @resign_saves_option_req
 @interactions.slash_option(
@@ -1240,13 +1156,12 @@ bo_cold_war = cheats_base_command.group(name="black_ops_cold_war", description="
         interactions.SlashCommandChoice(name="C58", value='A700'),
     ]
     )
-async def cold_war_set_wonder_weapon(ctx: interactions.SlashContext,save_files: str,token: str,account_id: str, **cheats_args):
+async def cold_war_set_wonder_weapon(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
     cheats_args['wonder_weapon'] = bytes.fromhex(cheats_args['wonder_weapon'])
-    await _do_the_cheats(ctx,save_files,account_id,token,black_ops_cold_war.set_wonder_weapon,**cheats_args)
+    await _do_the_cheats(ctx,save_files,account_id,black_ops_cold_war.set_wonder_weapon,**cheats_args)
 
 rdr2 = cheats_base_command.group(name="red_dead_redemption_2", description="Cheats for Red Dead Redemption 2")
 @rdr2.subcommand(sub_cmd_name="change_money", sub_cmd_description="Change your main money!")
-@token_option
 @cheats_base_save_files
 @resign_saves_option_req
 @interactions.slash_option(
@@ -1255,8 +1170,8 @@ rdr2 = cheats_base_command.group(name="red_dead_redemption_2", description="Chea
     required=True,
     opt_type=interactions.OptionType.INTEGER
 )
-async def change_money(ctx: interactions.SlashContext,save_files: str,token: str,account_id: str, **cheats_args):
-    await _do_the_cheats(ctx,save_files,account_id,token,red_dead_redemption_2.set_main_money,**cheats_args)
+async def change_money(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
+    await _do_the_cheats(ctx,save_files,account_id,red_dead_redemption_2.set_main_money,**cheats_args)
 
 def resource_path(relative_path) -> Path:
     try:
