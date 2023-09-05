@@ -599,16 +599,18 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
             new_url = await loop.run_in_executor(None,google_drive_upload_file,new_file_name,folder_id,drive_service)
             new_url = new_url[1]
             os.remove(new_file_name)
-            await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
+            last_msg2 = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
             await ctx.send(f'<@{ctx.author_id}> here is your resigned save: {new_url}',ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your resigned save: {new_url}')
             await ctx.delete(last_msg) if istl() else None
+            await ctx.delete(last_msg2) if istl() else None
         else:
             olddir = os.getcwd()
             os.chdir(new_file_name.parent)
-            await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
+            last_msg2 = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
             await ctx.send(f'<@{ctx.author_id}> here is your resigned save: ',file=new_file_name.name,ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your resigned save: ',file=new_file_name.name)
             os.chdir(olddir)
             await ctx.delete(last_msg) if istl() else None
+            await ctx.delete(last_msg2) if istl() else None
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
@@ -706,16 +708,18 @@ async def do_dec(ctx: interactions.SlashContext,token: str,save_files: str):
             new_url = await loop.run_in_executor(None,google_drive_upload_file,new_file_name,folder_id,drive_service)
             new_url = new_url[1]
             os.remove(new_file_name)
-            await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+            last_msg2 = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
             await ctx.send(f'<@{ctx.author_id}> here is your decrypted save: {new_url}',ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your decrypted save: {new_url}')
             await ctx.delete(last_msg) if istl() else None
+            await ctx.delete(last_msg2) if istl() else None
         else:
             olddir = os.getcwd()
             os.chdir(new_file_name.parent)
-            await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+            last_msg2 = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
             await ctx.send(f'<@{ctx.author_id}> here is your decrypted save: ',file=new_file_name.name,ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your decrypted save: ',file=new_file_name.name)
             os.chdir(olddir)
             await ctx.delete(last_msg) if istl() else None
+            await ctx.delete(last_msg2) if istl() else None
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
@@ -926,6 +930,7 @@ async def do_enc(ctx: interactions.SlashContext,token: str,decrypted_save_file: 
 
 @interactions.listen()
 async def ready():
+    await ps4.notify('eZwizard2 connected!')
     print('bot is ready!')
 
 
@@ -1121,16 +1126,18 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
             new_url = await loop.run_in_executor(None,google_drive_upload_file,new_file_name,folder_id,drive_service)
             new_url = new_url[1]
             os.remove(new_file_name)
-            await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+            last_msg2 = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
             await ctx.send(f'<@{ctx.author_id}> here is your save with cheats: {new_url}',ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your save with cheats: {new_url}')
             await ctx.delete(last_msg) if istl() else None
+            await ctx.delete(last_msg2) if istl() else None
         else:
             olddir = os.getcwd()
             os.chdir(new_file_name.parent)
-            await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+            last_msg2 = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
             await ctx.send(f'<@{ctx.author_id}> here your save with cheats: ',file=new_file_name.name,ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here your save with cheats: ',file=new_file_name.name)
             os.chdir(olddir)
             await ctx.delete(last_msg) if istl() else None
+            await ctx.delete(last_msg2) if istl() else None
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
@@ -1326,7 +1333,7 @@ async def main(ps4ip: str, user_id: int, placeholder_save_titleid: str, placehol
     global mem
     async with PatchMemoryPS4900(ps4) as mem:
         print('HELLO?')
-        await ps4.notify('eZwizard2 connected!')
+        
         await bot.astart()
 
 
