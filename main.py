@@ -127,21 +127,21 @@ def _get_valid_saves_out_names_only(the_folder: list[tuple[Path,str]]) -> Genera
                 except KeyError:
                     pass
                 else:
-                    yield filepath,white_file
+                    yield no_ids[filepath],white_file
             else:
                 try:
                     bin_file = no_ids[_PathWithNoIDInHash((filepath[0].with_suffix('.bin'),''))]
                 except KeyError:
                     pass
                 else:
-                    yield bin_file,filepath
+                    yield bin_file,no_ids[filepath]
 
 def get_valid_saves_out_names_only(the_folder: list[tuple[Path,str]]) -> set[Tuple[Tuple[Path, str],Tuple[Path, str]]]:
     return {x for x in _get_valid_saves_out_names_only(the_folder)}
 
 
 def make_folder_name_safe(name: str) -> str:
-    name = name.replace(' ','_').replace('/','_').replace('\\','_')
+    name = name.replace(' ','_').replace('/','_').replace('\\','_').replace('\\','_')
     result = "".join(c for c in name if c.isalnum() or c in ('_','-')).rstrip()
     return result if result else 'no_name'
 
@@ -635,14 +635,7 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
         is_bot_in_use = False
 
 
-@interactions.slash_command(name="decrypt",description=f"Decrypt your save files! (max {MAX_RESIGNS_PER_ONCE} save per command)")
-@interactions.slash_option(
-    name="save_files",
-    description="a google drive folder link containing your encrypted saves to be decrpyted",
-    required=True,
-    opt_type=interactions.OptionType.STRING
-    )
-async def do_dec(ctx: interactions.SlashContext,save_files: str):
+async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt: callable):
     global is_bot_in_use
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
@@ -700,7 +693,7 @@ async def do_dec(ctx: interactions.SlashContext,save_files: str):
                     result = mp
                     break
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...')
-                await loop.run_in_executor(None,download_ftp_folder,ftp,'/mnt/sandbox/NPXS20001_000/savedata0/',Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','savedata0'))
+                await loop.run_in_executor(None,extra_decrypt,ftp,'/mnt/sandbox/NPXS20001_000/savedata0/',Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','savedata0'))
         if not result:
             last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
             await ctx.send(content= f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}')
@@ -729,6 +722,18 @@ async def do_dec(ctx: interactions.SlashContext,save_files: str):
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
+
+
+@interactions.slash_command(name="decrypt",description=f"Decrypt your save files! (max {MAX_RESIGNS_PER_ONCE} save per command)")
+@interactions.slash_option(
+    name="save_files",
+    description="a google drive folder link containing your encrypted saves to be decrpyted",
+    required=True,
+    opt_type=interactions.OptionType.STRING
+    )
+async def do_dec(ctx: interactions.SlashContext,save_files: str,):
+    await _do_dec(ctx,save_files,download_ftp_folder)
+
 
 @interactions.slash_command(name="encrypt",description=f"Encrypt your save files! (max 1 save per command), only jb ps4 decrypted saves!")
 @interactions.slash_option(
