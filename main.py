@@ -141,7 +141,7 @@ def get_valid_saves_out_names_only(the_folder: list[tuple[Path,str]]) -> set[Tup
 
 
 def make_folder_name_safe(name: str) -> str:
-    name = name.replace(' ','_').replace('/','_').replace('\\','_').replace('\\','_')
+    name = name.replace(' ','_').replace('/','_').replace('\\','_')
     result = "".join(c for c in name if c.isalnum() or c in ('_','-')).rstrip()
     return result if result else 'no_name'
 
