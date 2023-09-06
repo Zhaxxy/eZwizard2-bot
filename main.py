@@ -41,7 +41,7 @@ from custom_cheats import red_dead_redemption_2
 FILE_SIZE_TOTAL_LIMIT = 600_000_000 # 600mb
 ATTACHMENT_MAX_FILE_SIZE = 24_000_000 # 24mb
 ZIP_LOOSE_FILES_MAX_AMT = 100
-MAX_RESIGNS_PER_ONCE = 13
+MAX_RESIGNS_PER_ONCE = 8
 
 SUCCESS_MSG = 'Your save was accepted! please wait until we ping you with a link to the new save'
 BOT_IN_USE_MSG = 'Sorry, the bot is currently in use! please wait...'
