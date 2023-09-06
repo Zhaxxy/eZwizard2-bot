@@ -73,6 +73,80 @@ async def download_file(url, destination: Path):
                 raise Exception(f"Error: Unable to download file from {url}, status code: {response.status}")
 
 
+def list_files_in_folder(parent_folder_id: str, parent_path: str | Path,lst: list = None) -> list[tuple[Path,str]]:
+    if lst is None:
+        lst = []
+    results = drive_service.files().list(
+        q=f"'{parent_folder_id}' in parents",
+        fields="files(id, name, mimeType)"
+    ).execute().get('files', [])
+
+    
+
+    for file in results:
+        file_name = file['name']
+        file_id = file['id']
+        file_mime_type = file['mimeType']
+
+        if 'application/vnd.google-apps.folder' in file_mime_type:
+            # If it's a folder, recursively list its contents
+            folder_path = Path(parent_path, file_name)
+            list_files_in_folder(file_id, folder_path,lst)
+        lst.append((Path(parent_path, file_name),file_id))
+    return lst
+
+
+class _PathWithNoIDInHash():
+    def __init__(self,file_thing: tuple[Path,str]):
+        self.file_thing = file_thing
+    
+    def __hash__(self):
+        return hash(self.file_thing[0])
+    
+    def __eq__(self,other):
+        return self.file_thing[0] == other.file_thing[0]
+
+    def __getitem__(self,index):
+        return self.file_thing[index]
+    
+    def __repr__(self):
+        return f'{type(self).__name__}({self.file_thing!r})'
+
+
+def _get_valid_saves_out_names_only(the_folder: list[tuple[Path,str]]) -> Generator[Tuple[Tuple[Path, str],Tuple[Path, str]], None, None]:
+    """
+    this function messes up if you use exact same path, but who tf be doing that
+    """
+    no_ids = {_PathWithNoIDInHash(x): x for x in the_folder}
+    
+    for filepath in no_ids:
+        if is_ps4_title_id(filepath[0].parent.name):
+            if filepath[0].name.endswith('.bin'):
+                try:
+                    white_file = no_ids[_PathWithNoIDInHash((filepath[0].with_suffix(''),''))]
+                except KeyError:
+                    pass
+                else:
+                    yield filepath,white_file
+            else:
+                try:
+                    bin_file = no_ids[_PathWithNoIDInHash((filepath[0].with_suffix('.bin'),''))]
+                except KeyError:
+                    pass
+                else:
+                    yield bin_file,filepath
+
+def get_valid_saves_out_names_only(the_folder: list[tuple[Path,str]]) -> set[Tuple[Tuple[Path, str],Tuple[Path, str]]]:
+    return {x for x in _get_valid_saves_out_names_only(the_folder)}
+
+
+def make_folder_name_safe(name: str) -> str:
+    name = name.replace(' ','_').replace('/','_').replace('\\','_').replace('\\','_')
+    result = "".join(c for c in name if c.isalnum() or c in ('_','-')).rstrip()
+    return result if result else 'no_name'
+
+
+
 def initialise_database():
     try:
         with open(Path('workspace','user_logins_stuff.json'),'r') as f:
@@ -277,11 +351,11 @@ async def download_save_from_ps4(bin_file: Path, white_file: Path, ctx: interact
     await ctx.edit(content = f'{SUCCESS_MSG}\n\nDONE DOWNLOADING {white_file.name} from PS4',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDONE DOWNLOADING {white_file.name} from PS4')
 
 
-async def download_enc_save(file: DriveFileWithParentDir,file2: DriveFileWithParentDir, output_folder: Path,ctx: interactions.SlashContext):
-    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the save_files, {file2[1].get("name")}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDownloading the save_files, {file2[1].get("name")}')
-    await loop.run_in_executor(None,download_google_drive_file,file2[1].get('id'),Path(output_folder,file2[1].get('name')))
-    await loop.run_in_executor(None,download_google_drive_file,file[1].get('id'),Path(output_folder,file[1].get('name')))
-    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDONE DOWNLOADING the save_files, {file2[1].get("name")}',) if istl() else await ctx.channel.send(content = f'{SUCCESS_MSG}\n\nDONE DOWNLOADING the save_files, {file2[1].get("name")}')
+async def download_enc_save(file: Tuple[Path,str],file2: Tuple[Path,str], output_folder: Path,ctx: interactions.SlashContext):
+    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the save_files, {file2[0]}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDownloading the save_files, {file2[0]}')
+    await loop.run_in_executor(None,download_google_drive_file,file2[1],Path(output_folder,file2[0].name))
+    await loop.run_in_executor(None,download_google_drive_file,file[1],Path(output_folder,file[0].name))
+    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDONE DOWNLOADING the save_files, {file2[0]}',) if istl() else await ctx.channel.send(content = f'{SUCCESS_MSG}\n\nDONE DOWNLOADING the save_files, {file2[1]}')
 
 async def do_resign_one_save(bin_file: Path, white_file: Path,accountid: AccountID,ctx: interactions.SlashContext):
     await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...')
@@ -407,7 +481,7 @@ def extract_drive_id(link):
     else:
         return ''  # Return empty string
 
-def download_google_drive_file(google_drive_id: str,zip_path: Path = Path('workspace','temp.zip')):
+def download_google_drive_file(google_drive_id: str,zip_path: Path):
     with open(zip_path,'wb') as f:
         downloader = MediaIoBaseDownload(f, drive_service.files().get_media(fileId=google_drive_id))
         done = False
@@ -489,12 +563,15 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
     google_drive_link_id = extract_drive_folder_id(save_files)
     
     try:
-        your_files = await loop.run_in_executor(None,google_drive_get_sub_dirs,google_drive_link_id,drive_service)
+        folder_name = drive_service.files().get(fileId=google_drive_link_id, fields="name").execute().get('name')
+        your_files = await loop.run_in_executor(None,list_files_in_folder,google_drive_link_id,folder_name)
     except:
         await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
         return
     
-    valid_saves = get_valid_saves_out_names_only(your_files)
+    valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
+
+
 
     if not valid_saves:
         await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
@@ -505,8 +582,8 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
         return
     
     for file,file2 in valid_saves:
-        file_metadata = drive_service.files().get(fileId=file[1].get('id'),fields = 'size,name').execute()
-        file_metadata2 = drive_service.files().get(fileId=file2[1].get('id'),fields = 'size,name').execute()
+        file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
+        file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
 
         if int(file_metadata['size']) != 96:
             await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
@@ -523,10 +600,10 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
     is_bot_in_use = True
     try:
         for index, (file,file2) in enumerate(valid_saves):
-            new_path_for_save = Path('workspace','resigned_saves',f'save_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].get('name'))
+            new_path_for_save = Path('workspace','resigned_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].parts[-2])
             os.makedirs(new_path_for_save, exist_ok=True)
             await download_enc_save(file,file2,new_path_for_save,ctx)
-            result = await do_resign_one_save(Path(new_path_for_save,file[1].get('name')),Path(new_path_for_save,file2[1].get('name')),leh_account_id,ctx)
+            result = await do_resign_one_save(Path(new_path_for_save,file[0].name),Path(new_path_for_save,file2[0].name),leh_account_id,ctx)
 
             if not result:
                 last_msg = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
@@ -542,14 +619,14 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
             new_url = new_url[1]
             os.remove(new_file_name)
             last_msg2 = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
-            await ctx.send(f'<@{ctx.author_id}> here is your resigned save: {new_url}',ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your resigned save: {new_url}')
+            await ctx.send(f'<@{ctx.author_id}> here is your resigned saves : {new_url}',ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your resigned save: {new_url}')
             await ctx.delete(last_msg) if istl() else None
             await ctx.delete(last_msg2) if istl() else None
         else:
             olddir = os.getcwd()
             os.chdir(new_file_name.parent)
             last_msg2 = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
-            await ctx.send(f'<@{ctx.author_id}> here is your resigned save: ',file=new_file_name.name,ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your resigned save: ',file=new_file_name.name)
+            await ctx.send(f'<@{ctx.author_id}> here is your resigned saves : ',file=new_file_name.name,ephemeral=False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}> here is your resigned save: ',file=new_file_name.name)
             os.chdir(olddir)
             await ctx.delete(last_msg) if istl() else None
             await ctx.delete(last_msg2) if istl() else None
@@ -577,12 +654,13 @@ async def do_dec(ctx: interactions.SlashContext,save_files: str):
     google_drive_link_id = extract_drive_folder_id(save_files)
     
     try:
-        your_files = await loop.run_in_executor(None,google_drive_get_sub_dirs,google_drive_link_id,drive_service)
+        folder_name = drive_service.files().get(fileId=google_drive_link_id, fields="name").execute().get('name')
+        your_files = await loop.run_in_executor(None,list_files_in_folder,google_drive_link_id,folder_name)
     except:
         await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
         return
     
-    valid_saves = get_valid_saves_out_names_only(your_files)
+    valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
 
     if not valid_saves:
         await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
@@ -593,8 +671,8 @@ async def do_dec(ctx: interactions.SlashContext,save_files: str):
         return
     
     for file,file2 in valid_saves:
-        file_metadata = drive_service.files().get(fileId=file[1].get('id'),fields = 'size,name').execute()
-        file_metadata2 = drive_service.files().get(fileId=file2[1].get('id'),fields = 'size,name').execute()
+        file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
+        file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
 
         if int(file_metadata['size']) != 96:
             await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
@@ -611,18 +689,18 @@ async def do_dec(ctx: interactions.SlashContext,save_files: str):
     is_bot_in_use = True
     try:
         for index, (file,file2) in enumerate(valid_saves):
-            os.makedirs(Path('workspace','decrypted_saves',f'save_{index}','savedata0'),exist_ok=True)
-            new_path_for_save = Path('workspace','save_to_be_decrypted',f'save_{index}')
+            os.makedirs(Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','savedata0'),exist_ok=True)
+            new_path_for_save = Path('workspace','save_to_be_decrypted',f'{make_folder_name_safe(str(file2[0]))}_{index}')
             os.makedirs(new_path_for_save, exist_ok=True)
             await download_enc_save(file,file2,new_path_for_save,ctx)
             result = True
-            await upload_save_to_ps4(Path(new_path_for_save,file[1].get('name')),Path(new_path_for_save,file2[1].get('name')),ctx)
+            await upload_save_to_ps4(Path(new_path_for_save,file[0].name),Path(new_path_for_save,file2[0].name),ctx)
             async with MountSave(ps4,mem,uid,psti,psd) as mp:
                 if not mp:
                     result = mp
                     break
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...')
-                await loop.run_in_executor(None,download_ftp_folder,ftp,'/mnt/sandbox/NPXS20001_000/savedata0/',Path('workspace','decrypted_saves',f'save_{index}','savedata0'))
+                await loop.run_in_executor(None,download_ftp_folder,ftp,'/mnt/sandbox/NPXS20001_000/savedata0/',Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','savedata0'))
         if not result:
             last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
             await ctx.send(content= f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}')
@@ -693,12 +771,13 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
     enc_google_drive_link_id = extract_drive_folder_id(encrypted_save_file)
     
     try:
-        your_files = await loop.run_in_executor(None,google_drive_get_sub_dirs,enc_google_drive_link_id,drive_service)
+        folder_name = drive_service.files().get(fileId=enc_google_drive_link_id, fields="name").execute().get('name')
+        your_files = await loop.run_in_executor(None,list_files_in_folder,enc_google_drive_link_id,folder_name)
     except:
         await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(encrypted_save_file),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(encrypted_save_file))
         return
     
-    valid_saves = get_valid_saves_out_names_only(your_files)
+    valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
 
     if not valid_saves:
         await ctx.send(f'the folder {enc_google_drive_link_id}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {enc_google_drive_link_id}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
@@ -711,24 +790,27 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
     dec_google_drive_link_id = extract_drive_folder_id(decrypted_save_file)
 
     try:
-        your_files_dec = await loop.run_in_executor(None,google_drive_get_sub_dirs,dec_google_drive_link_id,drive_service)
+        folder_name = drive_service.files().get(fileId=dec_google_drive_link_id, fields="name").execute().get('name')
+        your_files_dec = await loop.run_in_executor(None,list_files_in_folder,dec_google_drive_link_id,folder_name)
     except:
         await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(dec_google_drive_link_id),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(dec_google_drive_link_id))
         return
+    
 
-    temp_your_files_dec = []
+
+    temp_your_files_dec: list[tuple[Path,str]] = []
     seen_folder_ids = set()
-    for fieeee in your_files_dec:
-        if (fieeee[0].get('name') == 'savedata0') and (fieeee[0].get('id') not in seen_folder_ids):
-            temp_your_files_dec.append(fieeee)
-            seen_folder_ids.add(fieeee[0].get('id'))
+    for savedata0_folder in your_files_dec:
+        if savedata0_folder[0].name == 'savedata0' and savedata0_folder[1] not in seen_folder_ids:
+            seen_folder_ids.add(savedata0_folder[1]); temp_your_files_dec.append(savedata0_folder)
     your_files_dec = temp_your_files_dec
     
-    
-    
 
+    for savedata0_folder in your_files_dec:
+        file_mime_type = drive_service.files().get(fileId=savedata0_folder[1], fields="mimeType").execute().get('mimeType') 
+        if not 'application/vnd.google-apps.folder' in file_mime_type:
+            your_files_dec.remove(savedata0_folder)
 
-    
     if not your_files_dec:
         await ctx.send(f'the folder {decrypted_save_file} did not have any decrypted saves in it, did you get them from a ps4? it needs to be in a savedata0 folder!',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {decrypted_save_file} did not have any decrypted saves in it, did you get them from a ps4? it needs to be in a savedata0 folder!')
         return
@@ -736,10 +818,10 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
     if len(your_files_dec) > 1:
         await ctx.send(f'Theres too many decrypted saves to encrypt, we can only do {1} per encrypt command',ephemeral=False) if istl() else ctx.channel.send(f'Theres too many decrypted saves to encrypt, we can only do {1} per encrypt command')
         return
-    
+
     for file,file2 in valid_saves:
-        file_metadata = drive_service.files().get(fileId=file[1].get('id'),fields = 'size,name').execute()
-        file_metadata2 = drive_service.files().get(fileId=file2[1].get('id'),fields = 'size,name').execute()
+        file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
+        file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
 
         if int(file_metadata['size']) != 96:
             await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
@@ -760,7 +842,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
         result = True
         for index, (file,file2) in enumerate(valid_saves):
 
-            resultt = await loop.run_in_executor(None,get_folder_size,your_files_dec[index][0].get('id'),drive_service)
+            resultt = await loop.run_in_executor(None,get_folder_size,your_files_dec[index][1],drive_service)
 
             if resultt > FILE_SIZE_TOTAL_LIMIT:
                 last_msg = await ctx.send('s',ephemeral = False)
@@ -768,18 +850,18 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
                 await ctx.delete(last_msg) if istl() else None
                 return
 
-            dec_folder = your_files_dec[index][0]
-            new_path_for_save = Path('workspace','new_encrypted_save',f'save_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].get('name'))
+
+            new_path_for_save = Path('workspace','new_encrypted_save',f'{make_folder_name_safe(str(file2[0]))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].parts[-2])
             os.makedirs(new_path_for_save,exist_ok=True)
 
-            white_file = Path(new_path_for_save,file2[1].get('name'))
-            bin_file = Path(new_path_for_save,file[1].get('name'))
+            white_file = Path(new_path_for_save,file2[0].name)
+            bin_file = Path(new_path_for_save,file[0].name)
             await download_enc_save(file,file2,new_path_for_save,ctx)
             await upload_save_to_ps4(bin_file,white_file,ctx)
 
-            await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the decrypted save files ') if istl() else ctx.channel.send(content = f'{SUCCESS_MSG}\n\nDownloading the decrypted save files ')
+            await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the decrypted save files from gdrive...') if istl() else ctx.channel.send(content = f'{SUCCESS_MSG}\n\nDownloading the decrypted save files from gdrive...')
 
-            await loop.run_in_executor(None,download_folder,dec_folder.get('id'),Path('workspace','dump_the_dec_save',f'save_{index}'),drive_service)
+            await loop.run_in_executor(None,download_folder,your_files_dec[index][1],Path('workspace','dump_the_dec_save',f'{make_folder_name_safe(str(file2[0]))}_{index}'),drive_service)
             ftp.cwd('/')
             async with MountSave(ps4,mem,uid,psti,psd) as mp:
                 if not mp:
@@ -788,7 +870,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
                 if clean_encrypted_file:
                     delete_folder_contents(ftp,'/mnt/sandbox/NPXS20001_000/savedata0')
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading the decrypted save files to {white_file.name}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading the decrypted save files to {white_file.name}')
-                await loop.run_in_executor(None,upload_folder_contents,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','dump_the_dec_save',f'save_{index}'))
+                await loop.run_in_executor(None,upload_folder_contents,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','dump_the_dec_save',f'{make_folder_name_safe(str(file2[0]))}_{index}'))
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}')
                 try:
                     param_sfo = BytesIO()
@@ -883,26 +965,6 @@ def _get_drive_stuff(gfolder_id: str, leh_drive_service: cred_type_hint):
                                         fields='files(mimeType, id, name, size)').execute()['files']
 
 
-def _google_drive_get_sub_dirs(store_list: list,gfolder_id_dict: dict | str, folder_parent: dict ,leh_drive_service: cred_type_hint):
-    if isinstance(gfolder_id_dict,str):
-        gfolder_id_dict = leh_drive_service.files().get(fileId=gfolder_id_dict,supportsAllDrives=True,fields='id, name, mimeType').execute()
-    
-    for file in gfolder_id_dict:
-        if file.get('mimeType') == 'application/vnd.google-apps.folder':
-            store_list.append(DriveFileWithParentDir(frozendict(folder_parent),frozendict(file)))
-            _google_drive_get_sub_dirs(store_list,_get_drive_stuff(file.get('id'),leh_drive_service),file,leh_drive_service)
-        else:
-            store_list.append(DriveFileWithParentDir(frozendict(folder_parent),frozendict(file)))
-
-
-def google_drive_get_sub_dirs(gfolder_id: str, leh_drive_service: cred_type_hint) -> list[DriveFileWithParentDir]:
-    store_list = []
-    _google_drive_get_sub_dirs(store_list,
-        _get_drive_stuff(gfolder_id,leh_drive_service),
-        leh_drive_service.files().get(fileId=gfolder_id,supportsAllDrives=True,fields='id, name, mimeType').execute(),#{'name':'ps4'},
-        leh_drive_service)
-    return store_list
-
 def get_folder_size(folder_id: str,drive_service: cred_type_hint):
     total_size = 0
     results = drive_service.files().list(q=f"'{folder_id}' in parents and trashed=false",
@@ -945,16 +1007,10 @@ def download_folder(folder_id, dest_path,drive_service: cred_type_hint):
                     #print(f"Downloading {file_name}: {int(status.progress() * 100)}%")
     return True
 
-def get_valid_saves_out_names_only(your_files: List[DriveFileWithParentDir]) -> List[Tuple[DriveFileWithParentDir,DriveFileWithParentDir]]:
-    valid_saves = []
-    some_stuff = [file for file in your_files if is_ps4_title_id(file[0].get('name'))]
-
-    for file in some_stuff:
-        if file[1].get('name').endswith('.bin'):
-            for file2 in some_stuff:
-                if (file2[1].get('name') + '.bin' == file[1].get('name')) and (file2[0].get('id') == file[0].get('id')):
-                    valid_saves.append((file,file2))
-    return valid_saves
+def list_ps4_saves(folder_containing_saves: Path,/) -> Generator[Tuple[Path,Path],None,None]:
+    for filename in folder_containing_saves.rglob('*'):
+        if is_ps4_title_id(filename.parent.name) and filename.suffix == '.bin' and filename.is_file() and Path(filename.with_suffix('').as_posix()).is_file():
+            yield filename,Path(filename.with_suffix('').as_posix())
 
 async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_id: str,custom_cheat_function: callable,**cheat_agurments):
     global is_bot_in_use
@@ -977,12 +1033,13 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
     google_drive_link_id = extract_drive_folder_id(save_files)
     
     try:
-        your_files = await loop.run_in_executor(None,google_drive_get_sub_dirs,google_drive_link_id,drive_service)
+        folder_name = drive_service.files().get(fileId=google_drive_link_id, fields="name").execute().get('name')
+        your_files = await loop.run_in_executor(None,list_files_in_folder,google_drive_link_id,folder_name)
     except:
         await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
         return
     
-    valid_saves = get_valid_saves_out_names_only(your_files)
+    valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
 
     if not valid_saves:
         await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
@@ -993,8 +1050,8 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
         return
     
     for file,file2 in valid_saves:
-        file_metadata = drive_service.files().get(fileId=file[1].get('id'),fields = 'size,name').execute()
-        file_metadata2 = drive_service.files().get(fileId=file2[1].get('id'),fields = 'size,name').execute()
+        file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
+        file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
 
         if int(file_metadata['size']) != 96:
             await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
@@ -1020,11 +1077,11 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
             try:
                 gameid_for_path = cheat_agurments['gameid']
             except KeyError:
-                gameid_for_path = file[0].get('name')
-            new_path_for_save = Path('workspace','save_to_apply_cheats',f'save_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',gameid_for_path)
+                gameid_for_path = file[0].parts[-2]
+            new_path_for_save = Path('workspace','save_to_apply_cheats',f'{make_folder_name_safe(str(file2[0]))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',gameid_for_path)
             os.makedirs(new_path_for_save, exist_ok=True)
             await download_enc_save(file,file2,new_path_for_save,ctx)            
-            result = await do_resign_one_save_plus_cheat(Path(new_path_for_save,file[1].get('name')),Path(new_path_for_save,file2[1].get('name')),leh_account_id,ctx,custom_cheat_function,**cheat_agurments)
+            result = await do_resign_one_save_plus_cheat(Path(new_path_for_save,file[0].name),Path(new_path_for_save,file2[0].name),leh_account_id,ctx,custom_cheat_function,**cheat_agurments)
 
             if isinstance(result,str):
                 last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
@@ -1187,12 +1244,12 @@ async def main(ps4ip: str, user_id: int, placeholder_save_titleid: str, placehol
     
     global is_bot_in_use
     is_bot_in_use = False
-    global creds,drive_service
+    global drive_service
     try:
-        creds,drive_service = load_creds()
+        drive_service = load_creds()[1]
     except:
         os.remove('token.json')
-        creds,drive_service = load_creds()
+        drive_service = load_creds()[1]
     global folder_id
     with open('discord_token.txt','r') as f:
         DISCORD_TOKEN = f.read()
