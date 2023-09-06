@@ -693,7 +693,13 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
                     result = mp
                     break
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...')
-                await loop.run_in_executor(None,extra_decrypt,ftp,'/mnt/sandbox/NPXS20001_000/savedata0/',Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','savedata0'))
+                try:
+                    await loop.run_in_executor(None,extra_decrypt,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','savedata0'))
+                except:
+                    last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
+                    await ctx.send(content= f'<@{ctx.author_id}>. We couldnt decrypt your save, reason\n\n {format_exc()}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt decrypt your save, reason\n\n {format_exc()}')
+                    await ctx.delete(last_msg) if istl() else None
+                    return
         if not result:
             last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
             await ctx.send(content= f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}')
