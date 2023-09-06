@@ -41,11 +41,12 @@ from custom_cheats import red_dead_redemption_2
 FILE_SIZE_TOTAL_LIMIT = 600_000_000 # 600mb
 ATTACHMENT_MAX_FILE_SIZE = 24_000_000 # 24mb
 ZIP_LOOSE_FILES_MAX_AMT = 100
-MAX_RESIGNS_PER_ONCE = 8
+MAX_RESIGNS_PER_ONCE = 13
 
 SUCCESS_MSG = 'Your save was accepted! please wait until we ping you with a link to the new save'
 BOT_IN_USE_MSG = 'Sorry, the bot is currently in use! please wait...'
 INVALID_GDRIVE_URl_TEMPLATE = 'Invalid gdrive folder url {}. did you make sure its public? is it a folder link?'
+
 
 class DriveFileWithParentDir(NamedTuple):
     parent_dir: dict
@@ -503,6 +504,16 @@ def resign_saves_option_req(func):
     opt_type=interactions.OptionType.STRING
     )(func)
 
+
+def cheats_base_save_files(func):
+    return interactions.slash_option(
+    name="save_files",
+    description=f"google drive folder link containing the save files to apply the cheats too, max {MAX_RESIGNS_PER_ONCE} saves per command",
+    required=True,
+    opt_type=interactions.OptionType.STRING
+    )(func)
+
+
 @interactions.slash_command(name="ping",description=f"Test if the bot is responding")
 async def ping_test(ctx: interactions.SlashContext):
     global is_bot_in_use
@@ -730,15 +741,50 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
         is_bot_in_use = False
 
 
-@interactions.slash_command(name="decrypt",description=f"Decrypt your save files! (max {MAX_RESIGNS_PER_ONCE} save per command)")
-@interactions.slash_option(
+
+def dec_enc_save_files(func):
+    return interactions.slash_option(
     name="save_files",
     description="a google drive folder link containing your encrypted saves to be decrpyted",
     required=True,
     opt_type=interactions.OptionType.STRING
-    )
+    )(func)
+
+
+def sw_single_file_dec(func):
+    return interactions.slash_option(
+    name="sw_single_file_dec",
+    description="The file you wanna import, NOT A ZIP, YOU SHOULD GET THIS FROM SAVEWIZARD OR advanced_mode_export",
+    required=True,
+    opt_type=interactions.OptionType.ATTACHMENT
+    )(func)
+
+@interactions.slash_command(name="decrypt",description=f"Decrypt your save files! (max {MAX_RESIGNS_PER_ONCE} save per command)")
+@dec_enc_save_files
 async def do_dec(ctx: interactions.SlashContext,save_files: str,):
     await _do_dec(ctx,save_files,download_ftp_folder)
+
+advanced_mode_export = interactions.SlashCommand(name="advanced_mode_export", description="Commands to do any extra decryptions for certain saves")
+##########################################
+red_dead_redemption_2_export = advanced_mode_export.group(name="red_dead_redemption_2", description="Export saves for Red Dead Redemption 2")
+
+@red_dead_redemption_2_export.subcommand(sub_cmd_name="export", sub_cmd_description="Export saves for Red Dead Redemption 2")
+@dec_enc_save_files
+async def rdr2_export(ctx: interactions.SlashContext,save_files: str,):
+    await _do_dec(ctx,save_files,red_dead_redemption_2.decrypt_save)
+##########################################
+
+advanced_mode_import = interactions.SlashCommand(name="advanced_mode_import", description="Commands to import singular files, usually from savewizard")
+##########################################
+red_dead_redemption_2_import = advanced_mode_import.group(name="red_dead_redemption_2", description="Import saves for Red Dead Redemption 2, possibly from savwizard advanced mode export")
+
+@red_dead_redemption_2_import.subcommand(sub_cmd_name="import", sub_cmd_description="Import saves for Red Dead Redemption 2, possibly from savwizard advanced mode export")
+@cheats_base_save_files
+@resign_saves_option_req
+@sw_single_file_dec
+async def rdr2_import(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
+    await _do_the_cheats(ctx,save_files,account_id,red_dead_redemption_2.encrypt_save,**cheats_args)
+##########################################
 
 
 @interactions.slash_command(name="encrypt",description=f"Encrypt your save files! (max 1 save per command), only jb ps4 decrypted saves!")
@@ -1128,14 +1174,6 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
-
-def cheats_base_save_files(func):
-    return interactions.slash_option(
-    name="save_files",
-    description=f"google drive folder link containing the save files to apply the cheats too, max {MAX_RESIGNS_PER_ONCE} saves per command",
-    required=True,
-    opt_type=interactions.OptionType.STRING
-    )(func)
 
 
 cheats_base_command = interactions.SlashCommand(name="cheats", description="Commands for custom cheats for some games")
