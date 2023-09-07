@@ -764,11 +764,11 @@ def sw_single_file_dec(func):
 async def do_dec(ctx: interactions.SlashContext,save_files: str,):
     await _do_dec(ctx,save_files,download_ftp_folder)
 
-advanced_mode_export = interactions.SlashCommand(name="advanced_mode_export", description="Commands to do any extra decryptions for certain saves")
+advanced_mode_export = interactions.SlashCommand(name="advanced_mode_export", description="Commands to do any extra decryptions or file management for certain saves")
 ##########################################
-red_dead_redemption_2_export = advanced_mode_export.group(name="red_dead_redemption_2", description="Export saves for Red Dead Redemption 2")
+red_dead_redemption_2_export = advanced_mode_export.group(name="red_dead_redemption_2", description="Export decrypted saves from encrypted Red Dead Redemption 2 saves")
 
-@red_dead_redemption_2_export.subcommand(sub_cmd_name="export", sub_cmd_description="Export saves for Red Dead Redemption 2")
+@red_dead_redemption_2_export.subcommand(sub_cmd_name="export", sub_cmd_description="Export decrypted saves from encrypted Red Dead Redemption 2 saves")
 @dec_enc_save_files
 async def rdr2_export(ctx: interactions.SlashContext,save_files: str,):
     await _do_dec(ctx,save_files,red_dead_redemption_2.decrypt_save)
@@ -776,9 +776,35 @@ async def rdr2_export(ctx: interactions.SlashContext,save_files: str,):
 
 advanced_mode_import = interactions.SlashCommand(name="advanced_mode_import", description="Commands to import singular files, usually from savewizard")
 ##########################################
-red_dead_redemption_2_import = advanced_mode_import.group(name="red_dead_redemption_2", description="Import saves for Red Dead Redemption 2, possibly from savwizard advanced mode export")
+any_game_export = advanced_mode_export.group(name="any_game", description="Export decrypted save from any game, if it doesnt work, please ask to add your game")
+def any_game_decrypt_save(ftp: FTP, mounted_save_dir: str,download_loc: Path,/):
+    my_save_dir, = {x[0] for x in list_all_files_in_folder_ftp(ftp,mounted_save_dir) if (not x[0].startswith('/mnt/sandbox/NPXS20001_000/savedata0/sce_sys')) and x[1]}
 
-@red_dead_redemption_2_import.subcommand(sub_cmd_name="import", sub_cmd_description="Import saves for Red Dead Redemption 2, possibly from savwizard advanced mode export")
+    with open(Path(download_loc,my_save_dir.split('/')[-1]),'wb') as f:
+        ftp.retrbinary(f'RETR {my_save_dir}',f.write)
+
+@any_game_export.subcommand(sub_cmd_name="export", sub_cmd_description="Export decrypted save from any game, if it doesnt work, please ask to add your game")
+@dec_enc_save_files
+async def any_game_export_func(ctx: interactions.SlashContext,save_files: str,):
+    await _do_dec(ctx,save_files,any_game_decrypt_save)
+
+any_game_import = advanced_mode_import.group(name="any_game", description="Import dec saves for any game, maybe from SW advanced mode export, if dont work ask to add your game")
+async def any_game_encrypt_save(ftp: FTP, loop, mounted_save_dir: str,/,*,sw_single_file_dec: Path):
+    my_save_dir, = {x[0] for x in list_all_files_in_folder_ftp(ftp,mounted_save_dir) if (not x[0].startswith('/mnt/sandbox/NPXS20001_000/savedata0/sce_sys')) and x[1]}
+
+    with open(sw_single_file_dec,'rb') as f:
+        await loop.run_in_executor(None,ftp.storbinary,f'STOR {my_save_dir}',f)
+
+@any_game_import.subcommand(sub_cmd_name="import", sub_cmd_description="Import dec saves for any game, maybe from SW advanced mode export, if dont work ask to add your game")
+@cheats_base_save_files
+@resign_saves_option_req
+@sw_single_file_dec
+async def any_game_import_func(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
+    await _do_the_cheats(ctx,save_files,account_id,any_game_encrypt_save,**cheats_args)
+##########################################
+red_dead_redemption_2_import = advanced_mode_import.group(name="red_dead_redemption_2", description="Import decrypted saves for Red Dead Redemption 2, maybe from savewizard advanced mode export")
+
+@red_dead_redemption_2_import.subcommand(sub_cmd_name="import", sub_cmd_description="Import decrypted saves for Red Dead Redemption 2, maybe from savewizard advanced mode export")
 @cheats_base_save_files
 @resign_saves_option_req
 @sw_single_file_dec
