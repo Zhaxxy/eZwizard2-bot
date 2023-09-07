@@ -28,22 +28,16 @@ def list_all_files_in_folder_ftp(ftp,source_folder='') -> list[tuple[str,bool]]:
     return filesnfolders
 
 async def set_main_money(ftp: FTP, loop, mounted_save_dir: str,/,*, money: int):
-    for x in list_all_files_in_folder_ftp(ftp,mounted_save_dir):
-        if (not x[0].startswith('/mnt/sandbox/NPXS20001_000/savedata0/sce_sys')) and x[1]:
-            my_save_dir = x[0]
+    my_save_dir, = {x[0] for x in list_all_files_in_folder_ftp(ftp,mounted_save_dir) if (not x[0].startswith('/mnt/sandbox/NPXS20001_000/savedata0/sce_sys')) and x[1]}
     
     my_save = BytesIO()
-    
     await loop.run_in_executor(None,ftp.retrbinary,f'RETR {my_save_dir}',my_save.write)
-
     dec_save = auto_encrypt_decrypt(my_save)
 
     money_offset = dec_save.index(b'\xCE\x54\x8C\xF5')  + 0x10
 
     dec_save = BytesIO(dec_save)
-
     dec_save.seek(money_offset)
-
     dec_save.write(pack('>I',money))
 
     dec_save = BytesIO(auto_encrypt_decrypt(dec_save))
@@ -52,9 +46,7 @@ async def set_main_money(ftp: FTP, loop, mounted_save_dir: str,/,*, money: int):
 
 
 def decrypt_save(ftp: FTP, mounted_save_dir: str,download_loc: Path,/):
-    for x in list_all_files_in_folder_ftp(ftp,mounted_save_dir):
-        if (not x[0].startswith('/mnt/sandbox/NPXS20001_000/savedata0/sce_sys')) and x[1]:
-            my_save_dir = x[0]
+    my_save_dir, = {x[0] for x in list_all_files_in_folder_ftp(ftp,mounted_save_dir) if (not x[0].startswith('/mnt/sandbox/NPXS20001_000/savedata0/sce_sys')) and x[1]}
     
     my_save = BytesIO()
     ftp.retrbinary(f'RETR {my_save_dir}',my_save.write)
@@ -63,9 +55,7 @@ def decrypt_save(ftp: FTP, mounted_save_dir: str,download_loc: Path,/):
         f.write(auto_encrypt_decrypt(my_save))
 
 async def encrypt_save(ftp: FTP, loop, mounted_save_dir: str,/,*,sw_single_file_dec: Path):
-    for x in list_all_files_in_folder_ftp(ftp,mounted_save_dir):
-        if (not x[0].startswith('/mnt/sandbox/NPXS20001_000/savedata0/sce_sys')) and x[1]:
-            my_save_dir = x[0]
+    my_save_dir, = {x[0] for x in list_all_files_in_folder_ftp(ftp,mounted_save_dir) if (not x[0].startswith('/mnt/sandbox/NPXS20001_000/savedata0/sce_sys')) and x[1]}
     
     my_save = BytesIO(auto_encrypt_decrypt(BytesIO(sw_single_file_dec.read_bytes())))
     
