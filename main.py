@@ -41,7 +41,7 @@ from custom_cheats import red_dead_redemption_2
 FILE_SIZE_TOTAL_LIMIT = 600_000_000 # 600mb
 ATTACHMENT_MAX_FILE_SIZE = 24_000_000 # 24mb
 ZIP_LOOSE_FILES_MAX_AMT = 100
-MAX_RESIGNS_PER_ONCE = 8
+MAX_RESIGNS_PER_ONCE = 13
 
 SUCCESS_MSG = 'Your save was accepted! please wait until we ping you with a link to the new save'
 BOT_IN_USE_MSG = 'Sorry, the bot is currently in use! please wait...'
@@ -846,7 +846,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
 
     dec_google_drive_link_id = extract_drive_folder_id(decrypted_save_file)
 
-    try:
+    try:        
         folder_name = drive_service.files().get(fileId=dec_google_drive_link_id, fields="name").execute().get('name')
         your_files_dec = await loop.run_in_executor(None,list_files_in_folder,dec_google_drive_link_id,folder_name)
     except:
@@ -858,7 +858,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
     temp_your_files_dec: list[tuple[Path,str]] = []
     seen_folder_ids = set()
     for savedata0_folder in your_files_dec:
-        if savedata0_folder[0].name == 'savedata0' and savedata0_folder[1] not in seen_folder_ids:
+        if (savedata0_folder[0].name == 'savedata0' or (savedata0_folder[0].parent == Path('savedata0')) or savedata0_folder[0].parent == Path('/savedata0')) and savedata0_folder[1] not in seen_folder_ids:
             seen_folder_ids.add(savedata0_folder[1]); temp_your_files_dec.append(savedata0_folder)
     your_files_dec = temp_your_files_dec
     
