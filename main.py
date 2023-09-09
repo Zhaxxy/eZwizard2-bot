@@ -41,7 +41,7 @@ from custom_cheats import red_dead_redemption_2
 FILE_SIZE_TOTAL_LIMIT = 600_000_000 # 600mb
 ATTACHMENT_MAX_FILE_SIZE = 24_000_000 # 24mb
 ZIP_LOOSE_FILES_MAX_AMT = 100
-MAX_RESIGNS_PER_ONCE = 13
+MAX_RESIGNS_PER_ONCE = 99
 
 SUCCESS_MSG = 'Your save was accepted! please wait until we ping you with a link to the new save'
 BOT_IN_USE_MSG = 'Sorry, the bot is currently in use! please wait...'
@@ -157,11 +157,8 @@ def initialise_database():
 
 
 def get_user_account_id(author_id: str):
-    author_id = str(author_id)
-    try:
-        return tokens['user_account_ids'][author_id]
-    except KeyError:
-        return '0000000000000000'
+    return tokens['user_account_ids'][str(author_id)]
+
 
 def add_user_account_id(author_id: str,new_account_id: str):
     author_id = str(author_id)
@@ -563,12 +560,16 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
     discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
 
     if account_id == '0':
-        account_id = get_user_account_id(ctx.author_id)
-
+        try:
+            account_id = get_user_account_id(ctx.author_id)
+        except KeyError:
+            await ctx.send('You dont have any account id saved to the database!, try running the `/my_account_id` again',ephemeral=False) if istl() else await ctx.channel.send('You dont have any account id saved to the database!, try running the `/my_account_id` again')
+            return
+    
     try:
         leh_account_id = AccountID(account_id)
     except ValueError:
-        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command')
+        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command')
         return    
 
     google_drive_link_id = extract_drive_folder_id(save_files)
@@ -843,12 +844,16 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
     discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
 
     if account_id == '0':
-        account_id = get_user_account_id(ctx.author_id)
+        try:
+            account_id = get_user_account_id(ctx.author_id)
+        except KeyError:
+            await ctx.send('You dont have any account id saved to the database!, try running the `/my_account_id` again',ephemeral=False) if istl() else await ctx.channel.send('You dont have any account id saved to the database!, try running the `/my_account_id` again')
+            return
 
     try:
         leh_account_id = AccountID(account_id)
     except ValueError:
-        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command')
+        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command')
         return    
 
     enc_google_drive_link_id = extract_drive_folder_id(encrypted_save_file)
@@ -1105,12 +1110,16 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
     discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
     
     if account_id == '0':
-        account_id = get_user_account_id(ctx.author_id)
+        try:
+            account_id = get_user_account_id(ctx.author_id)
+        except KeyError:
+            await ctx.send('You dont have any account id saved to the database!, try running the `/my_account_id` again',ephemeral=False) if istl() else await ctx.channel.send('You dont have any account id saved to the database!, try running the `/my_account_id` again')
+            return
     
     try:
         leh_account_id = AccountID(account_id)
     except ValueError:
-        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the /my_account_id command')
+        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command')
         return    
 
     google_drive_link_id = extract_drive_folder_id(save_files)
