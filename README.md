@@ -8,6 +8,7 @@ A discord bot that connects to your jb ps4 to allow other people to do save thin
 - [ ] make this a more formal project
 
 # Required modules
+you need java in order for this it to work, most up to date java and it being on the PATH
 ```
 pip install frozendict
 pip install aiohttp
