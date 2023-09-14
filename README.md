@@ -11,6 +11,7 @@ A discord bot that connects to your jb ps4 to allow other people to do save thin
 you need java in order for this it to work, most up to date java and it being on the PATH
 ```
 pip install frozendict
+pip install sqlitedict
 pip install aiohttp
 pip install PSNAWP
 pip install ps4debug
