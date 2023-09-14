@@ -19,6 +19,7 @@ from traceback import format_exc
 from datetime import datetime
 
 from frozendict import frozendict
+from sqlitedict import SqliteDict
 import aiohttp
 from google.auth.external_account_authorized_user import Credentials as cred_type_hint
 from google.auth.transport.requests import Request
@@ -37,6 +38,7 @@ from savemount_py import PatchMemoryPS4900,MountSave,AccountID,MemoryIsPatched,u
 from custom_cheats import shantae_pirate_curse_cheats
 from custom_cheats import black_ops_cold_war
 from custom_cheats import red_dead_redemption_2
+from custom_cheats import littlebigplanet_3
 
 FILE_SIZE_TOTAL_LIMIT = 600_000_000 # 600mb
 ATTACHMENT_MAX_FILE_SIZE = 24_000_000 # 24mb
@@ -149,23 +151,19 @@ def make_folder_name_safe(name: str) -> str:
 
 
 def initialise_database():
-    try:
-        with open(Path('workspace','user_logins_stuff.json'),'r') as f:
-            return json.load(f)
-    except Exception:
-        return {'user_account_ids':{}}
+    pass
 
 
 def get_user_account_id(author_id: str):
-    return tokens['user_account_ids'][str(author_id)]
-
+    with SqliteDict("user_stuff.sqlite", tablename="user_account_ids") as db:
+        return db[author_id]
 
 def add_user_account_id(author_id: str,new_account_id: str):
     author_id = str(author_id)
     new_account_id = str(new_account_id)
-    tokens['user_account_ids'][author_id] = new_account_id
-    with open(Path('workspace','user_logins_stuff.json'),'w') as f:
-        json.dump(tokens,f)
+    with SqliteDict("user_stuff.sqlite", tablename="user_account_ids") as db:
+        db[author_id] = new_account_id
+        db.commit()
 
 leh_current_time = 0 
 def sgt() -> None:
@@ -440,8 +438,6 @@ def clean_workspace():
     silentfolder(Path('workspace','dump_the_dec_save'))
     silentfolder(Path('workspace','new_encrypted_save'))
     silentfolder(Path('workspace','save_to_apply_cheats'))
-    # with open(Path('workspace','user_logins_stuff.json'),'w') as f:
-        # json.dump(tokens,f)
 
 
 def isgoodzip(file: Path) -> bool:
@@ -565,7 +561,7 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
         except KeyError:
             await ctx.send('You dont have any account id saved to the database!, try running the `/my_account_id` again',ephemeral=False) if istl() else await ctx.channel.send('You dont have any account id saved to the database!, try running the `/my_account_id` again')
             return
-    
+        
     try:
         leh_account_id = AccountID(account_id)
     except ValueError:
@@ -689,6 +685,8 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
     
     await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
     
+    
+
     clean_workspace()
     # lets go!
     is_bot_in_use = True
@@ -1161,7 +1159,7 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
     try:
         for variable_name, variable in cheat_agurments.items():
             if isinstance(variable,interactions.Attachment):
-                await ctx.edit(content = f'Downloading custom cheat file {variable_name}...') if istl() else await ctx.channel.send(content = f'Downloading custom cheat file {variable_name}...')
+                await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading custom cheat file {variable_name}...') if istl() else await ctx.channel.send(content = f'Downloading custom cheat file {variable_name}...')
                 await download_file(variable.url,Path('workspace',variable_name))
                 cheat_agurments[variable_name] = Path('workspace',variable_name)    
         
@@ -1186,6 +1184,11 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
                 await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}')
                 await ctx.delete(last_msg) if istl() else None
                 return
+
+        for _, variable in cheat_agurments.items():
+            if isinstance(variable,Path):
+                os.remove(variable)
+
         new_file_name = Path('workspace','user_saves',f'{discord_file_name}.zip')
         last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up new saves to with cheats and resigned to {account_id} as {new_file_name.name}') if istl() else await ctx.channel.send( f'{SUCCESS_MSG}\n\nZipping up new saves to with cheats and resigned to {account_id} as {new_file_name.name}')
         await loop.run_in_executor(None,compress,Path('workspace','save_to_apply_cheats'),new_file_name)
@@ -1314,6 +1317,80 @@ rdr2 = cheats_base_command.group(name="red_dead_redemption_2", description="Chea
 async def change_money(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
     await _do_the_cheats(ctx,save_files,account_id,red_dead_redemption_2.set_main_money,**cheats_args)
 
+
+lbp3_ps4 = cheats_base_command.group(name="littlebigplanet_3", description="Cheats for LittleBigPlanet 3")
+@lbp3_ps4.subcommand(sub_cmd_name="install_mods", sub_cmd_description="Install .mod files to a level backup or LBPxSAVE (bigfart)")
+@cheats_base_save_files
+@resign_saves_option_req
+@interactions.slash_option(
+    name = 'ignore_plans',
+    description='Do you want to ignore .plan files in the mods? default is False',
+    required=False,
+    opt_type=interactions.OptionType.BOOLEAN
+)
+@interactions.slash_option(
+    name = 'mod_file1',
+    description='A mod file to install to a level backup or LBPxSAVE (bigfart), from toolkit/workbench',
+    required=False,
+    opt_type=interactions.OptionType.ATTACHMENT
+)
+@interactions.slash_option(
+    name = 'mod_file2',
+    description='A mod file to install to a level backup or LBPxSAVE (bigfart), from toolkit/workbench',
+    required=False,
+    opt_type=interactions.OptionType.ATTACHMENT
+)
+@interactions.slash_option(
+    name = 'mod_file3',
+    description='A mod file to install to a level backup or LBPxSAVE (bigfart), from toolkit/workbench',
+    required=False,
+    opt_type=interactions.OptionType.ATTACHMENT
+)
+@interactions.slash_option(
+    name = 'mod_file4',
+    description='A mod file to install to a level backup or LBPxSAVE (bigfart), from toolkit/workbench',
+    required=False,
+    opt_type=interactions.OptionType.ATTACHMENT
+)
+@interactions.slash_option(
+    name = 'mod_file5',
+    description='A mod file to install to a level backup or LBPxSAVE (bigfart), from toolkit/workbench',
+    required=False,
+    opt_type=interactions.OptionType.ATTACHMENT
+)
+@interactions.slash_option(
+    name = 'mod_file6',
+    description='A mod file to install to a level backup or LBPxSAVE (bigfart), from toolkit/workbench',
+    required=False,
+    opt_type=interactions.OptionType.ATTACHMENT
+)
+@interactions.slash_option(
+    name = 'mod_file7',
+    description='A mod file to install to a level backup or LBPxSAVE (bigfart), from toolkit/workbench',
+    required=False,
+    opt_type=interactions.OptionType.ATTACHMENT
+)
+@interactions.slash_option(
+    name = 'mod_file8',
+    description='A mod file to install to a level backup or LBPxSAVE (bigfart), from toolkit/workbench',
+    required=False,
+    opt_type=interactions.OptionType.ATTACHMENT
+)
+@interactions.slash_option(
+    name = 'mod_file9',
+    description='A mod file to install to a level backup or LBPxSAVE (bigfart), from toolkit/workbench',
+    required=False,
+    opt_type=interactions.OptionType.ATTACHMENT
+)
+@interactions.slash_option(
+    name = 'mod_file10',
+    description='A mod file to install to a level backup or LBPxSAVE (bigfart), from toolkit/workbench',
+    required=False,
+    opt_type=interactions.OptionType.ATTACHMENT
+)
+async def change_money(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
+    await _do_the_cheats(ctx,save_files,account_id,littlebigplanet_3.installmod2l0lbpxsave,**cheats_args)
+
 def resource_path(relative_path) -> Path:
     try:
         base_path = sys._MEIPASS
@@ -1355,14 +1432,14 @@ async def main(ps4ip: str, user_id: int, placeholder_save_titleid: str, placehol
         folder_id = response['files'][0]['id']
 
 
-    global tokens
+    
     if not os.path.isdir('workspace'):
         os.makedirs('workspace')
     if not os.path.isdir(Path('workspace','user_saves')):
         os.makedirs(Path('workspace','user_saves'))
     
     
-    tokens = initialise_database()
+    initialise_database()
     
     global ftp
     ftp = ftp_login_and_connect(ps4ip,2121)
@@ -1375,9 +1452,18 @@ async def main(ps4ip: str, user_id: int, placeholder_save_titleid: str, placehol
     global ps4
     ps4 = PS4Debug(ps4ip)
 
+
+    activity = interactions.Activity.create(
+        name="with interactions.py",
+        type=interactions.ActivityType.PLAYING
+    )
+
     bot = interactions.Client(token=DISCORD_TOKEN,
-                              #debug_scope='1145150555887509605'
-                              )
+                              #status=interactions.Status.DO_NOT_DISTURB,
+                              #activity=activity,
+                            )
+
+    # await bot.change_presence(activity=activity,status=interactions.Status.DO_NOT_DISTURB)
 
     global save_folder_ftp
     save_folder_ftp = f'/user/home/{hex(user_id).replace("0x","")}/savedata/{psti}'
