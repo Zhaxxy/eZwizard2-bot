@@ -349,7 +349,7 @@ LEVEL_ICO_TEX =  Path('custom_cheats','littlebigplanet_3','mod_installer','image
 
 LEVEL_ICO_TEX_HASH = get_sha1_hex(LEVEL_ICO_TEX)
 
-JSONINATOR_ARGS = (Path('custom_cheats','littlebigplanet_3','mod_installer','jdk-11.0.19.7-hotspot-windows','bin','java'),'-jar',Path('custom_cheats','littlebigplanet_3','mod_installer','jsoninator.jar'))
+JSONINATOR_ARGS = ('java','-jar',Path('custom_cheats','littlebigplanet_3','mod_installer','jsoninator.jar'))
 test_result = subprocess.run(JSONINATOR_ARGS,capture_output=True)
 
 if test_result.returncode:
