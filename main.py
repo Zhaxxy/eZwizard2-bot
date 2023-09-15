@@ -1388,7 +1388,7 @@ lbp3_ps4 = cheats_base_command.group(name="littlebigplanet_3", description="Chea
     required=False,
     opt_type=interactions.OptionType.ATTACHMENT
 )
-async def change_money(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
+async def lbp3_install_mod(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
     await _do_the_cheats(ctx,save_files,account_id,littlebigplanet_3.installmod2l0lbpxsave,**cheats_args)
 
 def resource_path(relative_path) -> Path:
