@@ -1,7 +1,7 @@
 from ftplib import FTP
 from io import BytesIO
 
-async def set_wonder_weapon(ftp: FTP,loop,weapon_slot: int,mounted_save_dir: str ,/,*, wonder_weapon: bytes,weapon_slot: int):
+async def set_wonder_weapon(ftp: FTP,loop,mounted_save_dir: str ,/,*, wonder_weapon: bytes,weapon_slot: int):
     ftp.cwd(mounted_save_dir)
     
     if not weapon_slot > 3:
