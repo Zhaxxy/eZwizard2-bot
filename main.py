@@ -514,7 +514,9 @@ async def ping_test(ctx: interactions.SlashContext):
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
     await ps4.notify(f'{ctx.author_id} pinged the bot!')
-    await ctx.send(f'<@{ctx.author_id}> Pong!',ephemeral=False)
+    global bot
+    await ctx.send(f'<@{ctx.author_id}> Pong! bot latency is {bot.latency * 1000:.2f}ms',ephemeral=False)
+
 
 @interactions.slash_command(name="my_account_id",description="Get your Account ID from your psn name")
 @interactions.slash_option(
@@ -1457,7 +1459,7 @@ async def main(ps4ip: str, user_id: int, placeholder_save_titleid: str, placehol
         name="with interactions.py",
         type=interactions.ActivityType.PLAYING
     )
-
+    global bot
     bot = interactions.Client(token=DISCORD_TOKEN,
                               #status=interactions.Status.DO_NOT_DISTURB,
                               #activity=activity,
