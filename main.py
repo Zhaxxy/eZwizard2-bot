@@ -889,7 +889,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
     temp_your_files_dec: list[tuple[Path,str]] = []
     seen_folder_ids = set()
     for savedata0_folder in your_files_dec:
-        if (savedata0_folder[0].name == 'savedata0' or (savedata0_folder[0].parent == Path('savedata0')) or savedata0_folder[0].parent == Path('/savedata0')) and savedata0_folder[1] not in seen_folder_ids:
+        if (savedata0_folder[0].name == 'savedata0') and savedata0_folder[1] not in seen_folder_ids:
             seen_folder_ids.add(savedata0_folder[1]); temp_your_files_dec.append(savedata0_folder)
     your_files_dec = temp_your_files_dec
     
@@ -898,7 +898,10 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
         file_mime_type = drive_service.files().get(fileId=savedata0_folder[1], fields="mimeType").execute().get('mimeType') 
         if not 'application/vnd.google-apps.folder' in file_mime_type:
             your_files_dec.remove(savedata0_folder)
-
+    
+    if folder_name == 'savedata0':
+        your_files_dec = [(Path(folder_name),dec_google_drive_link_id,)]
+    
     if not your_files_dec:
         await ctx.send(f'the folder {decrypted_save_file} did not have any decrypted saves in it, did you get them from a ps4? it needs to be in a savedata0 folder!',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {decrypted_save_file} did not have any decrypted saves in it, did you get them from a ps4? it needs to be in a savedata0 folder!')
         return
