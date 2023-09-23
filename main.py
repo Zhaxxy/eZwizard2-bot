@@ -48,7 +48,7 @@ MAX_RESIGNS_PER_ONCE = 99
 SUCCESS_MSG = 'Your save was accepted! please wait until we ping you with a link to the new save'
 BOT_IN_USE_MSG = 'Sorry, the bot is currently in use! please wait...'
 INVALID_GDRIVE_URl_TEMPLATE = 'Invalid gdrive folder url {}. did you make sure its public? is it a folder link?'
-
+CANT_USE_BOT_IN_DMS = 'Sorry, but you cant use this bot in dms you must use it in a server channel'
 
 class DriveFileWithParentDir(NamedTuple):
     parent_dir: dict
@@ -509,6 +509,9 @@ def cheats_base_save_files(func):
 
 @interactions.slash_command(name="ping",description=f"Test if the bot is responding")
 async def ping_test(ctx: interactions.SlashContext):
+    if not ctx.channel:
+        await ctx.send(CANT_USE_BOT_IN_DMS,ephemeral=False)
+        return
     global is_bot_in_use
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
@@ -549,6 +552,9 @@ async def my_account_id(ctx: interactions.SlashContext,psn_name: str):
     )
 @resign_saves_option_req
 async def resign_discord_command(ctx: interactions.SlashContext, save_files: str, account_id: str):
+    if not ctx.channel:
+        await ctx.send(CANT_USE_BOT_IN_DMS,ephemeral=False)
+        return
     global is_bot_in_use
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
@@ -646,6 +652,9 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
 
 
 async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt: callable):
+    if not ctx.channel:
+        await ctx.send(CANT_USE_BOT_IN_DMS,ephemeral=False)
+        return
     global is_bot_in_use
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
@@ -835,6 +844,9 @@ async def rdr2_import(ctx: interactions.SlashContext,save_files: str,account_id:
     opt_type=interactions.OptionType.BOOLEAN
 )
 async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encrypted_save_file: str ,account_id: str, clean_encrypted_file: bool = False):
+    if not ctx.channel:
+        await ctx.send(CANT_USE_BOT_IN_DMS,ephemeral=False)
+        return
     global is_bot_in_use
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
@@ -865,10 +877,12 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
         await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(encrypted_save_file),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(encrypted_save_file))
         return
     
+    
+    
     valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
-
+    
     if not valid_saves:
-        await ctx.send(f'the folder {enc_google_drive_link_id}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {enc_google_drive_link_id}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
+        await ctx.send(f'the folder {folder_name}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {enc_google_drive_link_id}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
         return
     
     if len(valid_saves) > 1:
@@ -1104,6 +1118,9 @@ def list_ps4_saves(folder_containing_saves: Path,/) -> Generator[Tuple[Path,Path
             yield filename,Path(filename.with_suffix('').as_posix())
 
 async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_id: str,custom_cheat_function: callable,**cheat_agurments):
+    if not ctx.channel:
+        await ctx.send(CANT_USE_BOT_IN_DMS,ephemeral=False)
+        return
     global is_bot_in_use
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
