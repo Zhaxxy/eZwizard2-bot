@@ -540,7 +540,7 @@ async def my_account_id(ctx: interactions.SlashContext,psn_name: str):
     
     last_msg = await ctx.send('s',ephemeral = False)
     
-    await ctx.send(f'<@{ctx.author_id}>  your account id for {psn_name} is {account_id_hex}, saved to database',ephemeral=False)
+    await ctx.send(f'<@{ctx.author_id}>  your account id for {psn_name} is {account_id_hex}, saved to database, use 0 in the account_id option to use this account id!',ephemeral=False)
     await ctx.delete(last_msg)
     
 @interactions.slash_command(name="resign",description=f"Resign a save file to an account id (max {MAX_RESIGNS_PER_ONCE} saves per command)")
