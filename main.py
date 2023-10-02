@@ -33,6 +33,7 @@ from psnawp_api import PSNAWP
 from psnawp_api.core.psnawp_exceptions import PSNAWPNotFound
 import interactions
 from ps4debug import PS4Debug
+from PIL import Image
 
 from savemount_py import PatchMemoryPS4900,MountSave,AccountID,MemoryIsPatched,unmount_save
 from custom_cheats import shantae_pirate_curse_cheats
@@ -164,6 +165,28 @@ def add_user_account_id(author_id: str,new_account_id: str):
     with SqliteDict("user_stuff.sqlite", tablename="user_account_ids") as db:
         db[author_id] = new_account_id
         db.commit()
+
+user_cheat_chains = {}
+def add_cheat_chain(author_id: str, cheat_function: callable, cheat_agurments: dict):
+    global user_cheat_chains
+    author_id = str(author_id)
+    try:
+        user_cheat_chains[author_id].append((cheat_function,cheat_agurments))
+    except KeyError:
+        user_cheat_chains[author_id] = [(cheat_function,cheat_agurments)]
+
+def get_cheat_chain(author_id: str) -> list[tuple[callable,dict]]:
+    global user_cheat_chains
+    author_id = str(author_id)
+    return user_cheat_chains[author_id]
+
+def delete_chain(author_id: str):
+    author_id = str(author_id)
+    global user_cheat_chains
+    try:
+        del user_cheat_chains[author_id]
+    except KeyError:
+        pass
 
 leh_current_time = 0 
 def sgt() -> None:
@@ -371,26 +394,8 @@ async def do_resign_one_save(bin_file: Path, white_file: Path,accountid: Account
     await download_save_from_ps4(bin_file,white_file,ctx)
     return True
 
-async def do_re_region_cheat(ftp: FTP, _,mounted_save_dir: str,/,*,gameid: str):
-    param_sfo = BytesIO()
-    ftp.retrbinary(f"RETR {mounted_save_dir}/sce_sys/param.sfo",param_sfo.write)
     
-    param_sfo.seek(0x61C)
-    param_sfo.write(gameid.encode('utf-8'))
-    param_sfo.seek(0)
-
-    param_sfo.seek(0x62C)
-    param_sfo.write(gameid.encode('utf-8'))
-    param_sfo.seek(0)
-
-    param_sfo.seek(0xA9C)
-    param_sfo.write(gameid.encode('utf-8'))
-    param_sfo.seek(0)
-    
-    ftp.storbinary(f"STOR {mounted_save_dir}/sce_sys/param.sfo",param_sfo)
-
-    
-async def do_resign_one_save_plus_cheat(bin_file: Path, white_file: Path,accountid: AccountID,ctx: interactions.SlashContext, cheat_function: callable, **cheat_args):
+async def do_resign_one_save_plus_cheat(bin_file: Path, white_file: Path,accountid: AccountID,ctx: interactions.SlashContext, cheat_chain: list[tuple[callable,dict]]):
     await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading {white_file.name} to PS4...')
     await upload_save_to_ps4(bin_file,white_file,ctx)
 
@@ -407,12 +412,13 @@ async def do_resign_one_save_plus_cheat(bin_file: Path, white_file: Path,account
             pass
         ftp.cwd('/')
         await ctx.edit(content = f'{SUCCESS_MSG}\n\nApplying cheats too {white_file.name}',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nApplying cheats too {white_file.name}')
-        try:
-            await cheat_function(ftp,loop,'/mnt/sandbox/NPXS20001_000/savedata0',**cheat_args)
-        except:
+        for cheat_function,cheat_args in cheat_chain:
+            try:
+                await cheat_function(ftp,loop,'/mnt/sandbox/NPXS20001_000/savedata0',**cheat_args)
+            except:
+                ftp.cwd('/')
+                return format_exc()
             ftp.cwd('/')
-            return format_exc()
-        ftp.cwd('/')
 
     await download_save_from_ps4(bin_file,white_file,ctx)
     return True
@@ -501,7 +507,7 @@ def resign_saves_option_req(func):
 def cheats_base_save_files(func):
     return interactions.slash_option(
     name="save_files",
-    description=f"google drive folder link containing the save files to apply the cheats too, max {MAX_RESIGNS_PER_ONCE} saves per command",
+    description=f"google drive folder link with save files, max {MAX_RESIGNS_PER_ONCE} saves per command, use 0 to start a chain",
     required=True,
     opt_type=interactions.OptionType.STRING
     )(func)
@@ -519,6 +525,24 @@ async def ping_test(ctx: interactions.SlashContext):
     await ps4.notify(f'{ctx.author_id} pinged the bot!')
     global bot
     await ctx.send(f'<@{ctx.author_id}> Pong! bot latency is {bot.latency * 1000:.2f}ms',ephemeral=False)
+
+
+@interactions.slash_command(name="see_cheat_chain",description=f"See the cheats currently in your chain!")
+async def see_cheat_chain(ctx: interactions.SlashContext):
+    try:
+        my_chain = get_cheat_chain(ctx.author_id)
+    except KeyError:
+        await ctx.send('You dont have any cheats in your chain currently')
+        return
+    
+    pretty_cheats = '\n'.join([f'```py\n{custom_cheat_function.__name__}(**{cheat_agurments})```\n' for custom_cheat_function,cheat_agurments in my_chain])
+    
+    await ctx.send(f'Cheats in your chain are currently...{pretty_cheats}') 
+
+@interactions.slash_command(name="delete_cheat_chain",description=f"Deletes your cheat chain")
+async def delete_cheat_chain(ctx: interactions.SlashContext):
+    delete_chain(ctx.author_id)
+    await ctx.send('Deleted your cheats chain successfully!')
 
 
 @interactions.slash_command(name="my_account_id",description="Get your Account ID from your psn name")
@@ -1141,6 +1165,17 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
     except ValueError:
         await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command')
         return    
+    
+    if save_files == '0':
+        await ctx.send(f'Added the cheat\n```py\n{custom_cheat_function.__name__}(**{cheat_agurments})```\n to the chain!')
+        add_cheat_chain(ctx.author_id,custom_cheat_function,cheat_agurments)
+        return
+    current_cheat_chain = [(custom_cheat_function,cheat_agurments)]
+    try:
+        current_cheat_chain += get_cheat_chain(ctx.author_id)
+    except KeyError:
+        pass
+
 
     google_drive_link_id = extract_drive_folder_id(save_files)
     
@@ -1179,21 +1214,26 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
     # lets go!
     is_bot_in_use = True
     try:
-        for variable_name, variable in cheat_agurments.items():
-            if isinstance(variable,interactions.Attachment):
-                await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading custom cheat file {variable_name}...') if istl() else await ctx.channel.send(content = f'Downloading custom cheat file {variable_name}...')
-                await download_file(variable.url,Path('workspace',variable_name))
-                cheat_agurments[variable_name] = Path('workspace',variable_name)    
+        for _,one_cheats_agurments in current_cheat_chain:
+            for variable_name, variable in one_cheats_agurments.items():
+                if isinstance(variable,interactions.Attachment):
+                    await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading custom cheat file {variable_name}...') if istl() else await ctx.channel.send(content = f'Downloading custom cheat file {variable_name}...')
+                    await download_file(variable.url,Path('workspace',variable_name))
+                    one_cheats_agurments[variable_name] = Path('workspace',variable_name)    
         
         for index, (file,file2) in enumerate(valid_saves):
-            try:
-                gameid_for_path = cheat_agurments['gameid']
-            except KeyError:
-                gameid_for_path = file[0].parts[-2]
+            for _,one_cheats_agurments in current_cheat_chain:
+                try:
+                    gameid_for_path = one_cheats_agurments['gameid']
+                    break
+                except KeyError:
+                    gameid_for_path = file[0].parts[-2]
+
+
             new_path_for_save = Path('workspace','save_to_apply_cheats',f'{make_folder_name_safe(str(file2[0]))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',gameid_for_path)
             os.makedirs(new_path_for_save, exist_ok=True)
             await download_enc_save(file,file2,new_path_for_save,ctx)            
-            result = await do_resign_one_save_plus_cheat(Path(new_path_for_save,file[0].name),Path(new_path_for_save,file2[0].name),leh_account_id,ctx,custom_cheat_function,**cheat_agurments)
+            result = await do_resign_one_save_plus_cheat(Path(new_path_for_save,file[0].name),Path(new_path_for_save,file2[0].name),leh_account_id,ctx,current_cheat_chain)
 
             if isinstance(result,str):
                 last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
@@ -1206,10 +1246,11 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
                 await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}')
                 await ctx.delete(last_msg) if istl() else None
                 return
-
-        for _, variable in cheat_agurments.items():
-            if isinstance(variable,Path):
-                os.remove(variable)
+        
+        for _,one_cheats_agurments in current_cheat_chain:
+            for _, variable in one_cheats_agurments.items():
+                if isinstance(variable,Path):
+                    os.remove(variable)
 
         new_file_name = Path('workspace','user_saves',f'{discord_file_name}.zip')
         last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up new saves to with cheats and resigned to {account_id} as {new_file_name.name}') if istl() else await ctx.channel.send( f'{SUCCESS_MSG}\n\nZipping up new saves to with cheats and resigned to {account_id} as {new_file_name.name}')
@@ -1233,6 +1274,7 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
             await ctx.delete(last_msg2) if istl() else None
             os.remove(new_file_name)
     finally:
+        delete_chain(ctx.author_id)
         is_bot_in_use = False
 
 
@@ -1240,6 +1282,24 @@ cheats_base_command = interactions.SlashCommand(name="cheats", description="Comm
 
 
 # lets define the custom cheats now!
+
+async def do_re_region_cheat(ftp: FTP, _,mounted_save_dir: str,/,*,gameid: str):
+    param_sfo = BytesIO()
+    ftp.retrbinary(f"RETR {mounted_save_dir}/sce_sys/param.sfo",param_sfo.write)
+    
+    param_sfo.seek(0x61C)
+    param_sfo.write(gameid.encode('utf-8'))
+    param_sfo.seek(0)
+
+    param_sfo.seek(0x62C)
+    param_sfo.write(gameid.encode('utf-8'))
+    param_sfo.seek(0)
+
+    param_sfo.seek(0xA9C)
+    param_sfo.write(gameid.encode('utf-8'))
+    param_sfo.seek(0)
+    
+    ftp.storbinary(f"STOR {mounted_save_dir}/sce_sys/param.sfo",param_sfo)
 
 @interactions.slash_command(name="re_region",description=f"Change the region of your save! (max {MAX_RESIGNS_PER_ONCE} save per command)")
 @cheats_base_save_files
@@ -1256,6 +1316,58 @@ async def re_region(ctx: interactions.SlashContext,save_files: str,account_id: s
         await ctx.send(f'Invalid gameid {cheats_args["gameid"]}')
         return
     await _do_the_cheats(ctx,save_files,account_id,do_re_region_cheat,**cheats_args)
+
+
+async def do_custom_image_cheat(ftp: FTP, _,mounted_save_dir: str,/,*,custom_image: Path, options: int):
+    PS4_ICON0_DIMENSIONS = 228,128
+    
+    icon0 = BytesIO()
+    ftp.retrbinary(f"RETR {mounted_save_dir}/sce_sys/icon0.png",icon0.write)
+    icon_overlay = Image.open(custom_image)
+    
+    width, height = icon_overlay.size
+    
+    if options == 0:
+        icon_overlay = icon_overlay.resize((int((width / height) * PS4_ICON0_DIMENSIONS[1]),PS4_ICON0_DIMENSIONS[1]),Image.Resampling.NEAREST)
+    elif options == 1:
+        icon_overlay = icon_overlay.resize(PS4_ICON0_DIMENSIONS,Image.Resampling.NEAREST)
+    elif options == 3:
+        icon_overlay = icon_overlay.resize((int((width / height) * PS4_ICON0_DIMENSIONS[1]),PS4_ICON0_DIMENSIONS[1]))
+    elif options == 4:
+        icon_overlay = icon_overlay.resize(PS4_ICON0_DIMENSIONS)
+    
+    new_icon = BytesIO()
+    
+    _temp_new_image = Image.open(icon0)
+    _temp_new_image.paste(icon_overlay, (0, 0),icon_overlay)
+    _temp_new_image.save(new_icon,format='PNG')
+    
+    new_icon.seek(0)
+    ftp.storbinary(f"STOR {mounted_save_dir}/sce_sys/icon0.png",new_icon)
+
+@interactions.slash_command(name="change_icon",description=f"Add an icon overlay to your saves!")
+@cheats_base_save_files
+@resign_saves_option_req
+@interactions.slash_option(
+    name = 'custom_image',
+    description='A custom image to add as an overlay to the icon, dont worry we deal with resizing and whatnot',
+    required=True,
+    opt_type=interactions.OptionType.ATTACHMENT
+)
+@interactions.slash_option(
+    name="options",
+    description="Some options you might want",
+    required=True,
+    opt_type=interactions.OptionType.INTEGER,
+    choices=[
+        interactions.SlashCommandChoice(name="Keep aspect ratio and use nearest neighbour for resizing", value=0),
+        interactions.SlashCommandChoice(name="Ignore aspect ratio and use nearest neighbour for resizing", value=1),
+        interactions.SlashCommandChoice(name="Keep aspect ratio and use bilnear for resizing", value=2),
+        interactions.SlashCommandChoice(name="Ignore aspect ratio and use bilnear for resizing", value=3),
+    ]
+    )
+async def change_icon(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
+    await _do_the_cheats(ctx,save_files,account_id,do_custom_image_cheat,**cheats_args)
 
 
 shantae_curse = cheats_base_command.group(name="shantae_curse", description="Cheats for Shantae and the Pirate's Curse")
