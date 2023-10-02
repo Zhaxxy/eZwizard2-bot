@@ -19,4 +19,5 @@ pip install -U discord-py-interactions
 pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
 pip install pycryptodome
 pip install xxtea
+pip install Pillow
 ```
