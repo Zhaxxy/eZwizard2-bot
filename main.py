@@ -41,7 +41,7 @@ from custom_cheats import black_ops_cold_war
 from custom_cheats import red_dead_redemption_2
 from custom_cheats import littlebigplanet_3
 
-FILE_SIZE_TOTAL_LIMIT = 600_000_000 # 600mb
+FILE_SIZE_TOTAL_LIMIT = 629_145_600 # 600mb
 ATTACHMENT_MAX_FILE_SIZE = 24_000_000 # 24mb
 ZIP_LOOSE_FILES_MAX_AMT = 100
 MAX_RESIGNS_PER_ONCE = 99
@@ -1323,7 +1323,7 @@ async def do_custom_image_cheat(ftp: FTP, _,mounted_save_dir: str,/,*,custom_ima
     
     icon0 = BytesIO()
     ftp.retrbinary(f"RETR {mounted_save_dir}/sce_sys/icon0.png",icon0.write)
-    icon_overlay = Image.open(custom_image)
+    icon_overlay = Image.open(custom_image).convert("RGBA")
     
     width, height = icon_overlay.size
     
