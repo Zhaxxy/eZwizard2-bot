@@ -12,7 +12,7 @@ you need java in order for this it to work, most up to date java and it being on
 ```
 pip install frozendict
 pip install sqlitedict
-pip install aiohttp
+pip install aiohttp --pre
 pip install PSNAWP
 pip install ps4debug
 pip install -U discord-py-interactions
