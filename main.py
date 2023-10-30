@@ -8,7 +8,7 @@ import string
 import random
 import re
 import json
-from enum import Enum
+import enum
 from typing import Tuple,Generator,NamedTuple,List
 from pathlib import Path
 import zipfile
@@ -51,9 +51,16 @@ BOT_IN_USE_MSG = 'Sorry, the bot is currently in use! please wait...'
 INVALID_GDRIVE_URl_TEMPLATE = 'Invalid gdrive folder url {}. did you make sure its public? is it a folder link?'
 CANT_USE_BOT_IN_DMS = 'Sorry, but you cant use this bot in dms you must use it in a server channel'
 
+
+class BotTaskState(enum.Enum):
+    BOT_FREE = enum.auto()
+    BOT_IN_USE = enum.auto()
+
+
 class DriveFileWithParentDir(NamedTuple):
     parent_dir: dict
     file: dict
+
 
 class TempThingIdk(NamedTuple):
     error_code: int
@@ -638,6 +645,7 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
     clean_workspace()
     # lets go!
     is_bot_in_use = True
+    await update_status()
     try:
         for index, (file,file2) in enumerate(valid_saves):
             new_path_for_save = Path('workspace','resigned_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].parts[-2])
@@ -673,6 +681,7 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
+        await update_status()
 
 
 async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt: callable):
@@ -725,6 +734,7 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
     clean_workspace()
     # lets go!
     is_bot_in_use = True
+    await update_status()
     try:
         for index, (file,file2) in enumerate(valid_saves):
             os.makedirs(Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','savedata0'),exist_ok=True)
@@ -773,7 +783,7 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
-
+        await update_status()
 
 
 def dec_enc_save_files(func):
@@ -967,6 +977,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
     clean_workspace()
     # lets go!
     is_bot_in_use = True
+    await update_status()
     try:
         result = True
         for index, (file,file2) in enumerate(valid_saves):
@@ -1061,12 +1072,8 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
             os.remove(new_file_name)
     finally:
         is_bot_in_use = False
-
-@interactions.listen()
-async def ready():
-    await ps4.notify('eZwizard2 connected!')
-    print('bot is ready!')
-
+        await update_status()
+        
 
 def google_drive_upload_file(file2upload: Path, gfolder_id, leh_drive_service) -> Tuple[str,str]:
     with open(file2upload,'rb') as f:
@@ -1213,6 +1220,7 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
     clean_workspace()
     # lets go!
     is_bot_in_use = True
+    await update_status()
     try:
         for _,one_cheats_agurments in current_cheat_chain:
             for variable_name, variable in one_cheats_agurments.items():
@@ -1276,6 +1284,7 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
     finally:
         delete_chain(ctx.author_id)
         is_bot_in_use = False
+        await update_status()
 
 
 cheats_base_command = interactions.SlashCommand(name="cheats", description="Commands for custom cheats for some games")
@@ -1525,6 +1534,7 @@ lbp3_ps4 = cheats_base_command.group(name="littlebigplanet_3", description="Chea
 async def lbp3_install_mod(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
     await _do_the_cheats(ctx,save_files,account_id,littlebigplanet_3.installmod2l0lbpxsave,**cheats_args)
 
+
 def resource_path(relative_path) -> Path:
     try:
         base_path = sys._MEIPASS
@@ -1532,6 +1542,44 @@ def resource_path(relative_path) -> Path:
         base_path = os.path.abspath(".")
     return Path(os.path.join(base_path, relative_path))
 
+
+def pretty_time(time_in_seconds: float) -> str:
+    hours, extra_seconds = divmod(int(time_in_seconds),3600)
+    minutes, seconds = divmod(extra_seconds,60)
+    return f'{hours:02d}:{minutes:02d}:{seconds:02d}'
+
+
+@interactions.listen()
+async def ready():
+    await update_status()
+    update_status.start()
+    await ps4.notify('eZwizard2 connected!')
+    print('bot is ready!')
+
+update_status_start = time.perf_counter()
+update_status_current_status = BotTaskState.BOT_FREE
+@interactions.Task.create(interactions.IntervalTrigger(seconds=30))
+async def update_status():
+    global update_status_start
+    global update_status_current_status
+    global is_bot_in_use
+    new_state = BotTaskState.BOT_IN_USE if is_bot_in_use else BotTaskState.BOT_FREE
+    if update_status_current_status != new_state:
+        update_status_start = time.perf_counter()
+    update_status_current_status = new_state
+    
+    new_time = pretty_time(time.perf_counter() - update_status_start)
+
+    if update_status_current_status == BotTaskState.BOT_FREE:
+        await bot.change_presence(activity=interactions.Activity.create(
+                                    name=f"available for {new_time}"),
+                                    status=interactions.Status.IDLE)
+    elif update_status_current_status == BotTaskState.BOT_IN_USE:
+        await bot.change_presence(activity=interactions.Activity.create(
+                                    name=f"in use for {new_time}"),
+                                    status=interactions.Status.DO_NOT_DISTURB)        
+    
+    
 async def main(ps4ip: str, user_id: int, placeholder_save_titleid: str, placeholder_save_dir: str):
     global psnawp
     with open('ssocookie.txt') as f: # get your key from https://ca.account.sony.com/api/v1/ssocookie
@@ -1587,10 +1635,6 @@ async def main(ps4ip: str, user_id: int, placeholder_save_titleid: str, placehol
     ps4 = PS4Debug(ps4ip)
 
 
-    activity = interactions.Activity.create(
-        name="with interactions.py",
-        type=interactions.ActivityType.PLAYING
-    )
     global bot
     bot = interactions.Client(token=DISCORD_TOKEN,
                               #status=interactions.Status.DO_NOT_DISTURB,
@@ -1609,7 +1653,7 @@ async def main(ps4ip: str, user_id: int, placeholder_save_titleid: str, placehol
     global mem
     async with PatchMemoryPS4900(ps4) as mem:
         print('HELLO?')
-        
+
         await bot.astart()
 
 
