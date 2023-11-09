@@ -4,8 +4,12 @@ import struct
 import os
 import zipfile
 from pathlib import Path
+import json
 
 from ps4debug import PS4Debug
+
+
+ERROR_CODE_LONG_NAMES = {int(key):value for key,value in  json.loads(Path(Path(__file__).parent / 'error_codes.json').read_text()).items()}
 
 try:
     from save_mount_unmount import PatchMemoryPS4900, MountSave, MemoryIsPatched
@@ -28,4 +32,5 @@ class AccountID:
         return self.account_id[::-1]
 
 def resign_save(ps4: PS4Debug, mem: MemoryIsPatched,user_id: int,ftp: FTP,save_zip_dir: Path, new_account_id: AccountID):
-    return NotImplemented
+    raise NotImplementedError
+
