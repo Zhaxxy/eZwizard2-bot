@@ -35,7 +35,7 @@ import interactions
 from ps4debug import PS4Debug
 from PIL import Image
 
-from savemount_py import PatchMemoryPS4900,MountSave,AccountID,MemoryIsPatched,unmount_save
+from savemount_py import PatchMemoryPS4900,MountSave,AccountID,MemoryIsPatched,unmount_save,ERROR_CODE_LONG_NAMES
 from custom_cheats import shantae_pirate_curse_cheats
 from custom_cheats import black_ops_cold_war
 from custom_cheats import red_dead_redemption_2
@@ -51,6 +51,7 @@ BOT_IN_USE_MSG = 'Sorry, the bot is currently in use! please wait...'
 INVALID_GDRIVE_URl_TEMPLATE = 'Invalid gdrive folder url {}. did you make sure its public? is it a folder link?'
 CANT_USE_BOT_IN_DMS = 'Sorry, but you cant use this bot in dms you must use it in a server channel'
 
+BOT_ADMINS = ('750306431223201793','1147836464353247343')
 
 class BotTaskState(enum.Enum):
     BOT_FREE = enum.auto()
@@ -534,6 +535,21 @@ async def ping_test(ctx: interactions.SlashContext):
     await ctx.send(f'<@{ctx.author_id}> Pong! bot latency is {bot.latency * 1000:.2f}ms',ephemeral=False)
 
 
+@interactions.slash_command(name="rich_presence_save_done_amnt",description=f"Remove X amount of counts in the rich presence, in case you was doing some tests or something")
+@interactions.slash_option(name='amnt2remove',description='The amount to remove',required=True,opt_type=interactions.OptionType.INTEGER)
+async def rich_presence_save_done_amnt(ctx: interactions.SlashContext, amnt2remove: int):
+    global amnt_used_this_session
+    if str(ctx.author_id) not in BOT_ADMINS:
+        await ctx.send('You do not have permissions to use this command')
+        return
+    if amnt2remove > amnt_used_this_session:
+        await ctx.send('too many to remove')
+        return
+    amnt_used_this_session -= amnt2remove
+    await update_status()
+    await ctx.send('made changes succesfully')
+
+
 @interactions.slash_command(name="see_cheat_chain",description=f"See the cheats currently in your chain!")
 async def see_cheat_chain(ctx: interactions.SlashContext):
     try:
@@ -587,6 +603,7 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
         await ctx.send(CANT_USE_BOT_IN_DMS,ephemeral=False)
         return
     global is_bot_in_use
+    global amnt_used_this_session
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
@@ -655,7 +672,7 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
 
             if not result:
                 last_msg = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
-                await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}')
+                await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code} ({ERROR_CODE_LONG_NAMES.get(result.error_code,"Missing Long Name")})',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}')
                 await ctx.delete(last_msg) if istl() else None
                 return
         new_file_name = Path('workspace','user_saves',f'{discord_file_name}.zip')
@@ -679,6 +696,7 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
             await ctx.delete(last_msg) if istl() else None
             await ctx.delete(last_msg2) if istl() else None
             os.remove(new_file_name)
+        amnt_used_this_session += 1
     finally:
         is_bot_in_use = False
         await update_status()
@@ -689,6 +707,7 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
         await ctx.send(CANT_USE_BOT_IN_DMS,ephemeral=False)
         return
     global is_bot_in_use
+    global amnt_used_this_session
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
@@ -757,7 +776,7 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
                     return
         if not result:
             last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
-            await ctx.send(content= f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}')
+            await ctx.send(content= f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code} ({ERROR_CODE_LONG_NAMES.get(result.error_code,"Missing Long Name")})',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt decrypt your save, reason {result.error_code}')
             await ctx.delete(last_msg) if istl() else None
             return
         new_file_name = Path('workspace','user_saves',f'{discord_file_name}.zip')
@@ -781,6 +800,7 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
             await ctx.delete(last_msg) if istl() else None
             await ctx.delete(last_msg2) if istl() else None
             os.remove(new_file_name)
+        amnt_used_this_session += 1
     finally:
         is_bot_in_use = False
         await update_status()
@@ -882,6 +902,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
         await ctx.send(CANT_USE_BOT_IN_DMS,ephemeral=False)
         return
     global is_bot_in_use
+    global amnt_used_this_session
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
@@ -1044,7 +1065,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
             if isinstance(result,TempThingIdk):
                 msg = 'use your decrypted save'
             last_msg = await ctx.send('s',ephemeral = False) if istl() else await ctx.channel.send('s')
-            await ctx.send(content= f'<@{ctx.author_id}>. We couldnt {msg}, reason {result.error_code}',) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt mount the encrypted save, reason {result.error_code}')
+            await ctx.send(content= f'<@{ctx.author_id}>. We couldnt {msg}, reason {result.error_code} ({ERROR_CODE_LONG_NAMES.get(result.error_code,"Missing Long Name")})',) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt mount the encrypted save, reason {result.error_code}')
             await ctx.delete(last_msg) if istl() else None
             return
 
@@ -1070,6 +1091,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
             await ctx.delete(last_msg) if istl() else None
             await ctx.delete(last_msg2) if istl() else None
             os.remove(new_file_name)
+        amnt_used_this_session += 1
     finally:
         is_bot_in_use = False
         await update_status()
@@ -1153,6 +1175,7 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
         await ctx.send(CANT_USE_BOT_IN_DMS,ephemeral=False)
         return
     global is_bot_in_use
+    global amnt_used_this_session
     if is_bot_in_use:
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
@@ -1251,7 +1274,7 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
 
             if not result:
                 last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
-                await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}',ephemeral = False) if istl() else await ctx.channel.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}')
+                await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code} ({ERROR_CODE_LONG_NAMES.get(result.error_code,"Missing Long Name")})',ephemeral = False) if istl() else await ctx.channel.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}')
                 await ctx.delete(last_msg) if istl() else None
                 return
         
@@ -1281,6 +1304,7 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
             await ctx.delete(last_msg) if istl() else None
             await ctx.delete(last_msg2) if istl() else None
             os.remove(new_file_name)
+        amnt_used_this_session += 1
     finally:
         delete_chain(ctx.author_id)
         is_bot_in_use = False
@@ -1558,8 +1582,10 @@ async def ready():
 
 update_status_start = time.perf_counter()
 update_status_current_status = BotTaskState.BOT_FREE
+amnt_used_this_session = 0
 @interactions.Task.create(interactions.IntervalTrigger(seconds=30))
 async def update_status():
+    global amnt_used_this_session
     global update_status_start
     global update_status_current_status
     global is_bot_in_use
@@ -1572,11 +1598,11 @@ async def update_status():
 
     if update_status_current_status == BotTaskState.BOT_FREE:
         await bot.change_presence(activity=interactions.Activity.create(
-                                    name=f"available for {new_time}"),
+                                    name=f"available for {new_time}\nused {amnt_used_this_session} times since boot up"),
                                     status=interactions.Status.IDLE)
     elif update_status_current_status == BotTaskState.BOT_IN_USE:
         await bot.change_presence(activity=interactions.Activity.create(
-                                    name=f"in use for {new_time}"),
+                                    name=f"in use for {new_time}\nused {amnt_used_this_session} times since boot up"),
                                     status=interactions.Status.DO_NOT_DISTURB)        
     
     
