@@ -1,7 +1,6 @@
 from os import remove
 from pathlib import Path
 from ftplib import FTP
-from tempfile import TemporaryFile
 
 from .mod_installer import install_mods_to_bigfart
 
