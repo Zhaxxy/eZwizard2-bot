@@ -1255,16 +1255,17 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
         for index, (file,file2) in enumerate(valid_saves):
             for _,one_cheats_agurments in current_cheat_chain:
                 try:
-                    gameid_for_path = one_cheats_agurments['gameid']
+                    gameid_for_path: str = one_cheats_agurments['gameid']
                     break
                 except KeyError:
                     gameid_for_path = file[0].parts[-2]
 
-
             new_path_for_save = Path('workspace','save_to_apply_cheats',f'{make_folder_name_safe(str(file2[0]))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',gameid_for_path)
             os.makedirs(new_path_for_save, exist_ok=True)
-            await download_enc_save(file,file2,new_path_for_save,ctx)            
-            result = await do_resign_one_save_plus_cheat(Path(new_path_for_save,file[0].name),Path(new_path_for_save,file2[0].name),leh_account_id,ctx,current_cheat_chain)
+            await download_enc_save(file,file2,new_path_for_save,ctx)      
+            bin_file = Path(new_path_for_save,file[0].name)
+            white_file = Path(new_path_for_save,file2[0].name)
+            result = await do_resign_one_save_plus_cheat(bin_file,white_file,leh_account_id,ctx,current_cheat_chain)
 
             if isinstance(result,str):
                 last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
@@ -1277,11 +1278,25 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
                 await ctx.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code} ({ERROR_CODE_LONG_NAMES.get(result.error_code,"Missing Long Name")})',ephemeral = False) if istl() else await ctx.channel.send(content= f'<@{ctx.author_id}>. We couldnt mount your save, reason {result.error_code}')
                 await ctx.delete(last_msg) if istl() else None
                 return
-        
+
+            # i swear i need to do some rethinking
+            for _,one_cheats_agurments in current_cheat_chain:
+                try:
+                    one_cheats_agurments['xenoverse_reregion']
+                    new_name = gameid_for_path + white_file.name[9:]
+                    
+                    bin_file.rename(bin_file.with_stem(new_name))
+                    white_file.rename(white_file.with_stem(new_name))
+                except KeyError:
+                    continue
+
         for _,one_cheats_agurments in current_cheat_chain:
             for _, variable in one_cheats_agurments.items():
                 if isinstance(variable,Path):
                     os.remove(variable)
+
+
+
 
         new_file_name = Path('workspace','user_saves',f'{discord_file_name}.zip')
         last_msg = await ctx.edit(content = f'{SUCCESS_MSG}\n\nZipping up new saves to with cheats and resigned to {account_id} as {new_file_name.name}') if istl() else await ctx.channel.send( f'{SUCCESS_MSG}\n\nZipping up new saves to with cheats and resigned to {account_id} as {new_file_name.name}')
@@ -1316,23 +1331,24 @@ cheats_base_command = interactions.SlashCommand(name="cheats", description="Comm
 
 # lets define the custom cheats now!
 
+# its just one singular line, no point really making it all seprate
+async def do_re_region_cheat_xenoverse(ftp: FTP, _,mounted_save_dir: str,/,*,gameid: str, xenoverse_reregion: Ellipsis):
+    await _do_re_region_cheat(ftp,_,mounted_save_dir,gameid=gameid,seeks=(0x61C,0x62C,0xA9C,0x9F8))
+
 async def do_re_region_cheat(ftp: FTP, _,mounted_save_dir: str,/,*,gameid: str):
+    await _do_re_region_cheat(ftp,_,mounted_save_dir,gameid=gameid,seeks=(0x61C,0x62C,0xA9C))
+
+async def _do_re_region_cheat(ftp: FTP, _,mounted_save_dir: str,/,*,gameid: str, seeks: tuple[int]):
     param_sfo = BytesIO()
     ftp.retrbinary(f"RETR {mounted_save_dir}/sce_sys/param.sfo",param_sfo.write)
-    
-    param_sfo.seek(0x61C)
-    param_sfo.write(gameid.encode('utf-8'))
-    param_sfo.seek(0)
 
-    param_sfo.seek(0x62C)
-    param_sfo.write(gameid.encode('utf-8'))
-    param_sfo.seek(0)
+    for seek in seeks:
+        param_sfo.seek(seek)
+        param_sfo.write(gameid.encode('utf-8'))
+        param_sfo.seek(0)
 
-    param_sfo.seek(0xA9C)
-    param_sfo.write(gameid.encode('utf-8'))
-    param_sfo.seek(0)
-    
     ftp.storbinary(f"STOR {mounted_save_dir}/sce_sys/param.sfo",param_sfo)
+
 
 @interactions.slash_command(name="re_region",description=f"Change the region of your save! (max {MAX_RESIGNS_PER_ONCE} save per command)")
 @cheats_base_save_files
@@ -1349,6 +1365,24 @@ async def re_region(ctx: interactions.SlashContext,save_files: str,account_id: s
         await ctx.send(f'Invalid gameid {cheats_args["gameid"]}')
         return
     await _do_the_cheats(ctx,save_files,account_id,do_re_region_cheat,**cheats_args)
+
+
+@interactions.slash_command(name="re_region_xenoverse",description=f"Change the region of your xenoverse save! (max {MAX_RESIGNS_PER_ONCE} save per command)")
+@cheats_base_save_files
+@resign_saves_option_req
+@interactions.slash_option(
+    name="gameid",
+    description="the gameid of the region you want, in format CUSAXXXXX",
+    required=True,
+    opt_type=interactions.OptionType.STRING
+    )
+async def re_region_xenoverse(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
+    cheats_args['gameid'] = cheats_args['gameid'].upper()
+    if not is_ps4_title_id(cheats_args['gameid']):
+        await ctx.send(f'Invalid gameid {cheats_args["gameid"]}')
+        return
+    cheats_args['xenoverse_reregion'] = Ellipsis
+    await _do_the_cheats(ctx,save_files,account_id,do_re_region_cheat_xenoverse,**cheats_args)
 
 
 async def do_custom_image_cheat(ftp: FTP, _,mounted_save_dir: str,/,*,custom_image: Path, options: int):
