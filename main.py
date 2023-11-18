@@ -50,8 +50,8 @@ SUCCESS_MSG = 'Your save was accepted! please wait until we ping you with a link
 BOT_IN_USE_MSG = 'Sorry, the bot is currently in use! please wait...'
 INVALID_GDRIVE_URl_TEMPLATE = 'Invalid gdrive folder url {}. did you make sure its public? is it a folder link?'
 CANT_USE_BOT_IN_DMS = 'Sorry, but you cant use this bot in dms you must use it in a server channel'
-
-BOT_ADMINS = ('750306431223201793','1147836464353247343')
+ADMIN_ONLY_CMD = 'You do not have permissions to use this command'
+MAKEGDRIVETEMPDIR = Path('workspace','thing_tempdir')
 
 class BotTaskState(enum.Enum):
     BOT_FREE = enum.auto()
@@ -67,20 +67,21 @@ class TempThingIdk(NamedTuple):
     error_code: int
     def __bool__(self):
         return False
-    
-async def download_file(url, destination: Path):
+
+
+
+async def download_file(url, destination: BytesIO):
     """
     function by chatGPT
     """
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             if response.status == 200:
-                with open(destination, 'wb') as f:
-                    while True:
-                        chunk = await response.content.read(1024)
-                        if not chunk:
-                            break
-                        f.write(chunk)
+                while True:
+                    chunk = await response.content.read(1024)
+                    if not chunk:
+                        break
+                    destination.write(chunk)
             else:
                 raise Exception(f"Error: Unable to download file from {url}, status code: {response.status}")
 
@@ -223,15 +224,24 @@ def load_creds() -> Tuple[str,cred_type_hint]:
 
 
 def load_config() -> Tuple[str,int,str,str]:
+    global BOT_ADMINS
     try:
         with open('ps4_stuff_config.json','r') as f:
             config = json.load(f)
-            
-            PS4_IP,USER_ID,TITLE_ID,SAVE_DIR = config['ps4_ip'], int(config['user_id'],16), config['title_id'], config['save_dir']
+
     except FileNotFoundError:
         with open('ps4_stuff_config.json','w') as f:
             json.dump({'ps4_ip':'1.1.1.2','user_id':'1eb71bbd','title_id':'','save_dir':''},f,indent=2)
         raise ValueError('Please configure the script in the ps4_stuff_config.json file')
+
+    PS4_IP,USER_ID,TITLE_ID,SAVE_DIR = config['ps4_ip'], int(config['user_id'],16), config['title_id'], config['save_dir']
+
+    try:
+        BOT_ADMINS = tuple(config['bot_admins'])
+    except KeyError:
+        config |= {"bot_admins":()}
+        with open('ps4_stuff_config.json','w') as f:
+            json.dump(config,f,indent=2)
 
     if not(PS4_IP and USER_ID and TITLE_ID and SAVE_DIR):
         raise ValueError('Please configure the script in the ps4_stuff_config.json file')
@@ -533,21 +543,6 @@ async def ping_test(ctx: interactions.SlashContext):
     await ps4.notify(f'{ctx.author_id} pinged the bot!')
     global bot
     await ctx.send(f'<@{ctx.author_id}> Pong! bot latency is {bot.latency * 1000:.2f}ms',ephemeral=False)
-
-
-@interactions.slash_command(name="rich_presence_save_done_amnt",description=f"Remove X amount of counts in the rich presence, in case you was doing some tests or something")
-@interactions.slash_option(name='amnt2remove',description='The amount to remove',required=True,opt_type=interactions.OptionType.INTEGER)
-async def rich_presence_save_done_amnt(ctx: interactions.SlashContext, amnt2remove: int):
-    global amnt_used_this_session
-    if str(ctx.author_id) not in BOT_ADMINS:
-        await ctx.send('You do not have permissions to use this command')
-        return
-    if amnt2remove > amnt_used_this_session:
-        await ctx.send('too many to remove')
-        return
-    amnt_used_this_session -= amnt2remove
-    await update_status()
-    await ctx.send('made changes succesfully')
 
 
 @interactions.slash_command(name="see_cheat_chain",description=f"See the cheats currently in your chain!")
@@ -1115,12 +1110,12 @@ def google_drive_upload_file(file2upload: Path, gfolder_id, leh_drive_service) -
     leh_drive_service.permissions().create(fileId=response.get('id'), body={'type':'anyone','role':'reader'}).execute()
     return response.get('id'),response.get('webContentLink')
 
-def _get_drive_stuff(gfolder_id: str, leh_drive_service: cred_type_hint):
-    return leh_drive_service.files().list(q=f"'{gfolder_id}' in parents",
-                                        spaces='drive',
-                                        supportsAllDrives=True,
-                                        includeItemsFromAllDrives=True,
-                                        fields='files(mimeType, id, name, size)').execute()['files']
+#def _get_drive_stuff(gfolder_id: str, leh_drive_service: cred_type_hint):
+#    return leh_drive_service.files().list(q=f"'{gfolder_id}' in parents",
+#                                        spaces='drive',
+#                                        supportsAllDrives=True,
+#                                        includeItemsFromAllDrives=True,
+#                                        fields='files(mimeType, id, name, size)').execute()['files']
 
 
 def get_folder_size(folder_id: str,drive_service: cred_type_hint):
@@ -1249,7 +1244,8 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
             for variable_name, variable in one_cheats_agurments.items():
                 if isinstance(variable,interactions.Attachment):
                     await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading custom cheat file {variable_name}...') if istl() else await ctx.channel.send(content = f'Downloading custom cheat file {variable_name}...')
-                    await download_file(variable.url,Path('workspace',variable_name))
+                    with open(Path('workspace',variable_name),'wb') as f:
+                        await download_file(variable.url,f)
                     one_cheats_agurments[variable_name] = Path('workspace',variable_name)    
         
         for index, (file,file2) in enumerate(valid_saves):
@@ -1364,7 +1360,11 @@ async def re_region(ctx: interactions.SlashContext,save_files: str,account_id: s
     if not is_ps4_title_id(cheats_args['gameid']):
         await ctx.send(f'Invalid gameid {cheats_args["gameid"]}')
         return
-    await _do_the_cheats(ctx,save_files,account_id,do_re_region_cheat,**cheats_args)
+    if cheats_args['gameid'] in {'CUSA12394', 'CUSA05088', 'CUSA12330', 'CUSA04904', 'CUSA10051', 'CUSA12358', 'CUSA06202', 'CUSA05774', 'CUSA05350', 'CUSA12390', 'CUSA06208', 'CUSA05085'}:
+        cheats_args['xenoverse_reregion'] = Ellipsis
+        await _do_the_cheats(ctx,save_files,account_id,do_re_region_cheat_xenoverse,**cheats_args)
+    else:
+        await _do_the_cheats(ctx,save_files,account_id,do_re_region_cheat,**cheats_args)
 
 
 @interactions.slash_command(name="re_region_xenoverse",description=f"Change the region of your xenoverse save! (max {MAX_RESIGNS_PER_ONCE} save per command)")
@@ -1638,82 +1638,164 @@ async def update_status():
         await bot.change_presence(activity=interactions.Activity.create(
                                     name=f"in use for {new_time}\nused {amnt_used_this_session} times since boot up"),
                                     status=interactions.Status.DO_NOT_DISTURB)        
+
+@interactions.slash_command(name="rich_presence_save_done_amnt",description=f"Remove X amount of counts in the rich presence, in case you was doing some tests or something")
+@interactions.slash_option(name='amnt2remove',description='The amount to remove',required=True,opt_type=interactions.OptionType.INTEGER)
+async def rich_presence_save_done_amnt(ctx: interactions.SlashContext, amnt2remove: int):
+    global amnt_used_this_session
+    if str(ctx.author_id) not in BOT_ADMINS:
+        await ctx.send(ADMIN_ONLY_CMD)
+        return
+    if amnt2remove > amnt_used_this_session:
+        await ctx.send('too many to remove')
+        return
+    amnt_used_this_session -= amnt2remove
+    await update_status()
+    await ctx.send('made changes succesfully')
+
+async def upload_folder(foldername: Path, parent_folder_id: str) -> str:
+    for file in foldername.rglob('*'):
+        for index, part in enumerate(file.parts):
+            if not index:
+                ...
+
+    return f'https://drive.google.com/drive/folders/{parent_folder_id}?usp=drive_link'
+
+@interactions.slash_command(name="link2gdrive",description=f"Upload a discord zip file to a google drive folder")
+@interactions.slash_option(name='link',description='any direct download link (like discord file)',required=True,opt_type=interactions.OptionType.STRING)
+async def link2gdrive(ctx: interactions.SlashContext, link: str):
+    if str(ctx.author_id) not in BOT_ADMINS:
+        await ctx.send(ADMIN_ONLY_CMD)
+        return
+    os.makedirs(MAKEGDRIVETEMPDIR)
+    await ctx.defer(ephemeral=True)
+    try:
+        try:
+            with open(MAKEGDRIVETEMPDIR / 'hi.zip','wb') as f:
+                await ctx.send(f'Downloading the zip file...',ephemeral=True)
+                await download_file(link,f)
+        except Exception:
+            print(format_exc())
+            await ctx.send(f'Could not download file <@{ctx.author_id}>',ephemeral=True)
+            return
+        
+        if not isgoodzip(MAKEGDRIVETEMPDIR / 'hi.zip'):
+            await ctx.send(f'Not a valid zip file <@{ctx.author_id}>',ephemeral=True)
+            return
+        
+        await ctx.send(f'Unzipping the zip',ephemeral=True)
+        await loop.run_in_executor(None,uncompress,MAKEGDRIVETEMPDIR / 'hi.zip',MAKEGDRIVETEMPDIR / 'cool_saves')
+
+        for file in (MAKEGDRIVETEMPDIR / 'cool_saves').rglob('*'):
+            if file.suffix == '.zip':
+                if isgoodzip(file):
+                    await ctx.send(f'Unzipping subzip {file}',ephemeral=True)
+                    await loop.run_in_executor(None,uncompress,file,file.with_suffix(''))
+                    os.remove(file)
+
+        for file in (MAKEGDRIVETEMPDIR / 'cool_saves').rglob('*'):
+            if file.suffix == '.zip':
+                if isgoodzip(file):
+                    await ctx.send(f'Unzipping subzip {file}',ephemeral=True)
+                    await loop.run_in_executor(None,uncompress,file,file.with_suffix(''))
+                    os.remove(file)
+
+        await ctx.send(f'uploading to gdrive',ephemeral=True)
+        parent_folder_id = await loop.run_in_executor(None,make_gdrive_folder,drive_service,datetime.now().strftime("%d_%m_%Y__%H_%M_%S"),ps4_saves_folder_id,True)
+        new_link = await upload_folder((MAKEGDRIVETEMPDIR / 'cool_saves'),parent_folder_id)
+        await ctx.send(new_link,ephemeral=True)
+        await ctx.send(f'<@{ctx.author_id}>',ephemeral=True)
+    finally:
+        rmtree(MAKEGDRIVETEMPDIR)
+
+def make_gdrive_folder(service, foldername: str, parent_folder_id: str = '',make_public: bool = False) -> str:
+    if not parent_folder_id:
+        response = service.files().list(
+            q = f"name='{foldername}' and mimeType='application/vnd.google-apps.folder'",
+            spaces = 'drive'
+        ).execute()
+
+        if not response['files']:
+            ret = service.files().create(
+                body = {
+                    'name':foldername,
+                    'mimeType':'application/vnd.google-apps.folder',
+                    #'parents': [parent_folder_id],
+                },
+                fields = 'id'
+            ).execute().get('id')
+        else:
+            ret = response['files'][0]['id']
+    else:
+        response = service.files().list(q=f"name='{foldername}' and '{parent_folder_id}' in parents",spaces='drive').execute()
+        if not response['files']:
+                ret = service.files().create(
+                    body = {
+                        'name':foldername,
+                        'mimeType':'application/vnd.google-apps.folder',
+                        'parents': [parent_folder_id],
+                    },
+                    fields = 'id'
+                ).execute().get('id')
+        else:
+            ret = response['files'][0]['id']
     
-    
+    if make_public:
+        service.permissions().create(fileId=ret, body={'type':'anyone','role':'reader'}).execute()
+    return ret
+
 async def main(ps4ip: str, user_id: int, placeholder_save_titleid: str, placeholder_save_dir: str):
     global psnawp
-    with open('ssocookie.txt') as f: # get your key from https://ca.account.sony.com/api/v1/ssocookie
-        psnawp = PSNAWP(f.read())
-    
+    global folder_id
+    global ps4_saves_folder_id
     global is_bot_in_use
-    is_bot_in_use = False
     global drive_service
+    global ftp
+    global uid,psti,psd
+    global ps4
+    global bot
+    global save_folder_ftp
+    global mem
+    
+    psnawp = PSNAWP(Path('ssocookie.txt').read_text('ascii'))
+    
+    is_bot_in_use = False
+    
     try:
         drive_service = load_creds()[1]
     except:
         os.remove('token.json')
         drive_service = load_creds()[1]
-    global folder_id
+    
     with open('discord_token.txt','r') as f:
         DISCORD_TOKEN = f.read()
-    
-    response = drive_service.files().list(
-        q = "name='ezwizardtwo_saves' and mimeType='application/vnd.google-apps.folder'",
-        spaces = 'drive'
-    ).execute()
 
-    if not response['files']:
-        folder_id = drive_service.files().create(
-            body = {
-                'name':'ezwizardtwo_saves',
-                'mimeType':'application/vnd.google-apps.folder'
-            },
-            fields = 'id'
-        ).execute().get('id')
-    else:
-        folder_id = response['files'][0]['id']
+    folder_id = make_gdrive_folder(drive_service,'ezwizardtwo_saves')
+    ps4_saves_folder_id = make_gdrive_folder(drive_service,'ps4_saves')
 
-
-    
     if not os.path.isdir('workspace'):
         os.makedirs('workspace')
     if not os.path.isdir(Path('workspace','user_saves')):
         os.makedirs(Path('workspace','user_saves'))
-    
-    
+
     initialise_database()
-    
-    global ftp
     ftp = ftp_login_and_connect(ps4ip,2121)
     
-    global uid,psti,psd
     uid,psti,psd = user_id,placeholder_save_titleid,placeholder_save_dir
-
-
     await PS4Debug.send_ps4debug(ps4ip,port=9090,file_path=resource_path(Path('savemount_py','ps4debug.bin'))); time.sleep(1)
-    global ps4
     ps4 = PS4Debug(ps4ip)
 
+    bot = interactions.Client(token=DISCORD_TOKEN)
 
-    global bot
-    bot = interactions.Client(token=DISCORD_TOKEN,
-                              #status=interactions.Status.DO_NOT_DISTURB,
-                              #activity=activity,
-                            )
-
-    # await bot.change_presence(activity=activity,status=interactions.Status.DO_NOT_DISTURB)
-
-    global save_folder_ftp
     save_folder_ftp = f'/user/home/{hex(user_id).replace("0x","")}/savedata/{psti}'
     
     ftp.cwd(save_folder_ftp)
     ftp.retrbinary(f'RETR {psd}.bin' ,BytesIO().write)
     ftp.cwd('/')
     
-    global mem
+    
     async with PatchMemoryPS4900(ps4) as mem:
         print('HELLO?')
-
         await bot.astart()
 
 
