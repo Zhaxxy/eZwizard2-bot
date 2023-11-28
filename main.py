@@ -1794,7 +1794,7 @@ async def main(ps4ip: str, user_id: int, placeholder_save_titleid: str, placehol
 
     bot = interactions.Client(token=DISCORD_TOKEN)
 
-    save_folder_ftp = f'/user/home/{hex(user_id).replace("0x","")}/savedata/{psti}'
+    save_folder_ftp = f'/user/home/{user_id:x}/savedata/{psti}'
     
     ftp.cwd(save_folder_ftp)
     ftp.retrbinary(f'RETR {psd}.bin' ,BytesIO().write)
