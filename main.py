@@ -41,7 +41,7 @@ from custom_cheats import black_ops_cold_war
 from custom_cheats import red_dead_redemption_2
 from custom_cheats import littlebigplanet_3
 
-FILE_SIZE_TOTAL_LIMIT = 629_145_600 # 600mb
+FILE_SIZE_TOTAL_LIMIT = 677_145_600 # 600mb
 ATTACHMENT_MAX_FILE_SIZE = 24_000_000 # 24mb
 ZIP_LOOSE_FILES_MAX_AMT = 100
 MAX_RESIGNS_PER_ONCE = 99
@@ -109,7 +109,7 @@ def list_files_in_folder(parent_folder_id: str, parent_path: str | Path,lst: lis
     return lst
 
 
-class _PathWithNoIDInHash():
+class _PathWithNoIDInHash:
     def __init__(self,file_thing: tuple[Path,str]):
         self.file_thing = file_thing
     
@@ -153,10 +153,11 @@ def get_valid_saves_out_names_only(the_folder: list[tuple[Path,str]]) -> set[Tup
     return {x for x in _get_valid_saves_out_names_only(the_folder)}
 
 
-def make_folder_name_safe(name: str) -> str:
-    name = name.replace(' ','_').replace('/','_').replace('\\','_').replace('\\','_')
-    result = "".join(c for c in name if c.isalnum() or c in ('_','-')).rstrip()
-    return result if result else 'no_name'
+def make_folder_name_safe(some_string_path_ig: str, /) -> str:
+    some_string_path_ig = str(some_string_path_ig)
+    some_string_path_ig = some_string_path_ig.replace(' ','_').replace('/','_').replace('\\','_').replace('\\','_')
+    result = "".join(c for c in some_string_path_ig if c.isalnum() or c in ('_','-')).rstrip()
+    return result[:254] if result else 'no_name'
 
 
 
@@ -362,12 +363,12 @@ def upload_folder_contents(ftp: FTP,folder2uploadto: str, folderwithstuff: Path)
 def is_ps4_title_id(input_str: str,/) -> bool: 
     return input_str.startswith('CUSA') and len(input_str) == 9 and input_str[-5:].isdigit()
 
-def list_ps4_saves(folder_containing_saves: Path,/,delete_none_saves: bool = False) -> Generator[Tuple[Path,Path],None,None]:
-    for filename in folder_containing_saves.rglob('*'):
-        if is_ps4_title_id(filename.parent.name) and filename.suffix == '.bin' and filename.is_file() and Path(filename.with_suffix('').as_posix()).is_file():
-            yield filename,Path(filename.with_suffix('').as_posix())
-        elif delete_none_saves and filename.is_file() and not filename.with_suffix('.bin').is_file():
-            os.remove(filename)
+# def list_ps4_saves(folder_containing_saves: Path,/,delete_none_saves: bool = False) -> Generator[Tuple[Path,Path],None,None]:
+    # for filename in folder_containing_saves.rglob('*'):
+        # if is_ps4_title_id(filename.parent.name) and filename.suffix == '.bin' and filename.is_file() and Path(filename.with_suffix('').as_posix()).is_file():
+            # yield filename,Path(filename.with_suffix('').as_posix())
+        # elif delete_none_saves and filename.is_file() and not filename.with_suffix('.bin').is_file():
+            # os.remove(filename)
 
 
 def resign_param_sfo(param_sfo: BytesIO,/,account_id: AccountID):
@@ -660,7 +661,7 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
     await update_status()
     try:
         for index, (file,file2) in enumerate(valid_saves):
-            new_path_for_save = Path('workspace','resigned_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].parts[-2])
+            new_path_for_save = Path('workspace','resigned_saves',f'{make_folder_name_safe(str(file2[0].parent.parent))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].parts[-2])
             os.makedirs(new_path_for_save, exist_ok=True)
             await download_enc_save(file,file2,new_path_for_save,ctx)
             result = await do_resign_one_save(Path(new_path_for_save,file[0].name),Path(new_path_for_save,file2[0].name),leh_account_id,ctx)
@@ -751,8 +752,8 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
     await update_status()
     try:
         for index, (file,file2) in enumerate(valid_saves):
-            os.makedirs(Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','savedata0'),exist_ok=True)
-            new_path_for_save = Path('workspace','save_to_be_decrypted',f'{make_folder_name_safe(str(file2[0]))}_{index}')
+            os.makedirs(Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0].parent.parent))}_{index}','savedata0'),exist_ok=True)
+            new_path_for_save = Path('workspace','save_to_be_decrypted',f'{make_folder_name_safe(str(file2[0].parent.parent))}_{index}')
             os.makedirs(new_path_for_save, exist_ok=True)
             await download_enc_save(file,file2,new_path_for_save,ctx)
             result = True
@@ -763,7 +764,7 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
                     break
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...')
                 try:
-                    await loop.run_in_executor(None,extra_decrypt,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0]))}_{index}','savedata0'))
+                    await loop.run_in_executor(None,extra_decrypt,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0].parent.parent))}_{index}','savedata0'))
                 except:
                     last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
                     await ctx.send(content= f'<@{ctx.author_id}>. We couldnt decrypt your save, reason\n\n {format_exc()}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt decrypt your save, reason\n\n {format_exc()}')
@@ -1007,7 +1008,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
                 return
 
 
-            new_path_for_save = Path('workspace','new_encrypted_save',f'{make_folder_name_safe(str(file2[0]))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].parts[-2])
+            new_path_for_save = Path('workspace','new_encrypted_save',f'{make_folder_name_safe(str(file2[0].parent.parent))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].parts[-2])
             os.makedirs(new_path_for_save,exist_ok=True)
 
             white_file = Path(new_path_for_save,file2[0].name)
@@ -1017,7 +1018,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
 
             await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the decrypted save files from gdrive...') if istl() else ctx.channel.send(content = f'{SUCCESS_MSG}\n\nDownloading the decrypted save files from gdrive...')
 
-            await loop.run_in_executor(None,download_folder,your_files_dec[index][1],Path('workspace','dump_the_dec_save',f'{make_folder_name_safe(str(file2[0]))}_{index}'),drive_service)
+            await loop.run_in_executor(None,download_folder,your_files_dec[index][1],Path('workspace','dump_the_dec_save',f'{make_folder_name_safe(str(file2[0].parent.parent))}_{index}'),drive_service)
             ftp.cwd('/')
             async with MountSave(ps4,mem,uid,psti,psd) as mp:
                 if not mp:
@@ -1026,7 +1027,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
                 if clean_encrypted_file:
                     delete_folder_contents(ftp,'/mnt/sandbox/NPXS20001_000/savedata0')
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading the decrypted save files to {white_file.name}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading the decrypted save files to {white_file.name}')
-                await loop.run_in_executor(None,upload_folder_contents,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','dump_the_dec_save',f'{make_folder_name_safe(str(file2[0]))}_{index}'))
+                await loop.run_in_executor(None,upload_folder_contents,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','dump_the_dec_save',f'{make_folder_name_safe(str(file2[0].parent.parent))}_{index}'))
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}')
                 try:
                     param_sfo = BytesIO()
@@ -1256,7 +1257,7 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
                 except KeyError:
                     gameid_for_path = file[0].parts[-2]
 
-            new_path_for_save = Path('workspace','save_to_apply_cheats',f'{make_folder_name_safe(str(file2[0]))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',gameid_for_path)
+            new_path_for_save = Path('workspace','save_to_apply_cheats',f'{make_folder_name_safe(str(file2[0].parent.parent))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',gameid_for_path)
             os.makedirs(new_path_for_save, exist_ok=True)
             await download_enc_save(file,file2,new_path_for_save,ctx)      
             bin_file = Path(new_path_for_save,file[0].name)
@@ -1653,12 +1654,18 @@ async def rich_presence_save_done_amnt(ctx: interactions.SlashContext, amnt2remo
     await update_status()
     await ctx.send('made changes succesfully')
 
-async def upload_folder(foldername: Path, parent_folder_id: str) -> str:
-    for file in foldername.rglob('*'):
-        for index, part in enumerate(file.parts):
-            if not index:
-                ...
-
+async def upload_ps4_enc_save_folder(foldername: Path, parent_folder_id: str) -> str:
+    for bin_file, white_file in list_ps4_saves(foldername):
+        cusa = bin_file.parts[-2]
+        new_folder_name = make_folder_name_safe(bin_file.parent.parent)
+    
+    
+    new_folder_name_id = await loop.run_in_executor(None,make_gdrive_folder,drive_service,new_folder_name,parent_folder_id,True)
+    cusa_id = await loop.run_in_executor(None,make_gdrive_folder,drive_service,cusa,new_folder_name_id,True)
+    
+    await loop.run_in_executor(None,google_drive_upload_file,bin_file,cusa_id,drive_service)
+    await loop.run_in_executor(None,google_drive_upload_file,white_file,cusa_id,drive_service)
+    
     return f'https://drive.google.com/drive/folders/{parent_folder_id}?usp=drive_link'
 
 @interactions.slash_command(name="link2gdrive",description=f"Upload a discord zip file to a google drive folder")
@@ -1702,7 +1709,7 @@ async def link2gdrive(ctx: interactions.SlashContext, link: str):
 
         await ctx.send(f'uploading to gdrive',ephemeral=True)
         parent_folder_id = await loop.run_in_executor(None,make_gdrive_folder,drive_service,datetime.now().strftime("%d_%m_%Y__%H_%M_%S"),ps4_saves_folder_id,True)
-        new_link = await upload_folder((MAKEGDRIVETEMPDIR / 'cool_saves'),parent_folder_id)
+        new_link = await upload_ps4_enc_save_folder((MAKEGDRIVETEMPDIR / 'cool_saves'),parent_folder_id)
         await ctx.send(new_link,ephemeral=True)
         await ctx.send(f'<@{ctx.author_id}>',ephemeral=True)
     finally:
