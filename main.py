@@ -232,7 +232,7 @@ def load_config() -> Tuple[str,int,str,str]:
 
     except FileNotFoundError:
         with open('ps4_stuff_config.json','w') as f:
-            json.dump({'ps4_ip':'1.1.1.2','user_id':'1eb71bbd','title_id':'','save_dir':''},f,indent=2)
+            json.dump({'ps4_ip':'1.1.1.2','user_id':'1eb71bbd','title_id':'','save_dir':'',"bot_admins":()},f,indent=2)
         raise ValueError('Please configure the script in the ps4_stuff_config.json file')
 
     PS4_IP,USER_ID,TITLE_ID,SAVE_DIR = config['ps4_ip'], int(config['user_id'],16), config['title_id'], config['save_dir']
@@ -1655,16 +1655,19 @@ async def rich_presence_save_done_amnt(ctx: interactions.SlashContext, amnt2remo
     await ctx.send('made changes succesfully')
 
 async def upload_ps4_enc_save_folder(foldername: Path, parent_folder_id: str) -> str:
+    new_folder_names = {}
     for bin_file, white_file in list_ps4_saves(foldername):
         cusa = bin_file.parts[-2]
-        new_folder_name = make_folder_name_safe(bin_file.parent.parent)
-    
-    
-    new_folder_name_id = await loop.run_in_executor(None,make_gdrive_folder,drive_service,new_folder_name,parent_folder_id,True)
-    cusa_id = await loop.run_in_executor(None,make_gdrive_folder,drive_service,cusa,new_folder_name_id,True)
-    
-    await loop.run_in_executor(None,google_drive_upload_file,bin_file,cusa_id,drive_service)
-    await loop.run_in_executor(None,google_drive_upload_file,white_file,cusa_id,drive_service)
+        new_folder_name = make_folder_name_safe(bin_file.parent.parent.relative_to(Path('workspace','thing_tempdir'))) # waa
+        try:
+            new_folder_name_id = new_folder_names[new_folder_name]
+        except KeyError:
+            new_folder_name_id = await loop.run_in_executor(None,make_gdrive_folder,drive_service,new_folder_name,parent_folder_id,True)
+            new_folder_names[new_folder_name] = new_folder_name_id
+        cusa_id = await loop.run_in_executor(None,make_gdrive_folder,drive_service,cusa,new_folder_name_id,True)
+
+        await loop.run_in_executor(None,google_drive_upload_file,bin_file,cusa_id,drive_service)
+        await loop.run_in_executor(None,google_drive_upload_file,white_file,cusa_id,drive_service)
     
     return f'https://drive.google.com/drive/folders/{parent_folder_id}?usp=drive_link'
 
