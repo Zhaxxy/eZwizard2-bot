@@ -53,6 +53,12 @@ CANT_USE_BOT_IN_DMS = 'Sorry, but you cant use this bot in dms you must use it i
 ADMIN_ONLY_CMD = 'You do not have permissions to use this command'
 MAKEGDRIVETEMPDIR = Path('workspace','thing_tempdir')
 
+PS4_SAVE_KEYSTONES = {
+    'CUSA05350':b'keystone\x02\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb5\xaa\xa6\xdd\x19*\xfd\xdd\x8dy\x93\x8eJ\xce\x13\x7f\xd4H\x1d\xf1\x11\xbd\x18\x8a\xf3\x02\xc5l6j\x91\x12K\xcbZe\x06tj\x9d\x08\xd53;\xc1\x9cD\x96h\xff\xef\xe2\x18$W\x96\x8fQ\xa1\xc8<\x0b\x18\x96',
+    'CUSA05088':b'keystone\x02\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00&\xedp\x94\xb2\x94\xa3\x9bc\xbd\x94\x11;\x06l\x93x\x9d\xc2K\xe2\xed\xfc\xd78\xff\xdd\x8dU\x86\xab\xd8N\x1dx8q\xcf\xd3\x0b\xfc\x8cr<il\xbbd\xbd\x17\xbe(?\x85Xn\xa5\xf4T\xe8s\xdcu\xaa'
+}
+
+
 class BotTaskState(enum.Enum):
     BOT_FREE = enum.auto()
     BOT_IN_USE = enum.auto()
@@ -1278,15 +1284,12 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
 
             # i swear i need to do some rethinking
             for _,one_cheats_agurments in current_cheat_chain:
-                try:
-                    one_cheats_agurments['xenoverse_reregion']
+                if one_cheats_agurments.get('xenoverse_reregion'):
                     new_name = gameid_for_path + white_file.name[9:]
-                    
                     bin_file.rename(bin_file.with_stem(new_name))
                     white_file.rename(white_file.with_stem(new_name))
-                except KeyError:
-                    continue
 
+        0x62c
         for _,one_cheats_agurments in current_cheat_chain:
             for _, variable in one_cheats_agurments.items():
                 if isinstance(variable,Path):
@@ -1330,21 +1333,28 @@ cheats_base_command = interactions.SlashCommand(name="cheats", description="Comm
 
 # its just one singular line, no point really making it all seprate
 async def do_re_region_cheat_xenoverse(ftp: FTP, _,mounted_save_dir: str,/,*,gameid: str, xenoverse_reregion: Ellipsis):
-    await _do_re_region_cheat(ftp,_,mounted_save_dir,gameid=gameid,seeks=(0x61C,0x62C,0xA9C,0x9F8))
+    await _do_re_region_cheat(ftp,_,mounted_save_dir,gameid=gameid,seeks=(0x61C,0xA9C,0x9F8))
 
 async def do_re_region_cheat(ftp: FTP, _,mounted_save_dir: str,/,*,gameid: str):
     await _do_re_region_cheat(ftp,_,mounted_save_dir,gameid=gameid,seeks=(0x61C,0x62C,0xA9C))
 
-async def _do_re_region_cheat(ftp: FTP, _,mounted_save_dir: str,/,*,gameid: str, seeks: tuple[int]):
+async def _do_re_region_cheat(ftp: FTP, _,mounted_save_dir: str,/,*,gameid: str, seeks: tuple[int, ...]):
     param_sfo = BytesIO()
     ftp.retrbinary(f"RETR {mounted_save_dir}/sce_sys/param.sfo",param_sfo.write)
-
+    
+    keystone = BytesIO()
+    ftp.retrbinary(f"RETR {mounted_save_dir}/sce_sys/keystone",keystone.write)
+    keystone.seek(0)
+    keystone.write(PS4_SAVE_KEYSTONES.get(gameid,keystone.getvalue()))
+    keystone.seek(0)
+    
     for seek in seeks:
         param_sfo.seek(seek)
         param_sfo.write(gameid.encode('utf-8'))
         param_sfo.seek(0)
 
     ftp.storbinary(f"STOR {mounted_save_dir}/sce_sys/param.sfo",param_sfo)
+    ftp.storbinary(f"STOR {mounted_save_dir}/sce_sys/keystone",keystone)
 
 
 @interactions.slash_command(name="re_region",description=f"Change the region of your save! (max {MAX_RESIGNS_PER_ONCE} save per command)")
