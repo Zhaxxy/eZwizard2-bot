@@ -345,11 +345,11 @@ LBP3_SLOT_TEMPLATE = """{
 
 TEMPLATE_LEVEL = (Path(__file__).parent / 'LBP1_BIN_ARRAY.json').read_text()
 
-LEVEL_ICO_TEX =  (Path(__file__) / 'image.tex').read_bytes()
+LEVEL_ICO_TEX =  (Path(__file__).parent / 'image.tex').read_bytes()
 
 LEVEL_ICO_TEX_HASH = get_sha1_hex(LEVEL_ICO_TEX)
 
-JSONINATOR_ARGS = ('java','-jar',Path(__file__) / 'jsoninator.jar')
+JSONINATOR_ARGS = ('java','-jar',Path(__file__).parent / 'jsoninator.jar')
 test_result = subprocess.run(JSONINATOR_ARGS,capture_output=True)
 
 if test_result.returncode:
