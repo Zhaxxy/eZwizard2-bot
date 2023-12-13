@@ -758,8 +758,8 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
     await update_status()
     try:
         for index, (file,file2) in enumerate(valid_saves):
-            os.makedirs(Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0].parent))}','savedata0'),exist_ok=True)
-            new_path_for_save = Path('workspace','save_to_be_decrypted',f'{make_folder_name_safe(str(file2[0].parent))}')
+            os.makedirs(Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0].parent))}_{index}','savedata0'),exist_ok=True)
+            new_path_for_save = Path('workspace','save_to_be_decrypted',f'{make_folder_name_safe(str(file2[0].parent))}_{index}')
             os.makedirs(new_path_for_save, exist_ok=True)
             await download_enc_save(file,file2,new_path_for_save,ctx)
             result = True
@@ -770,7 +770,7 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
                     break
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDownloading decrpyted save from PS4...')
                 try:
-                    await loop.run_in_executor(None,extra_decrypt,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0].parent))}','savedata0'))
+                    await loop.run_in_executor(None,extra_decrypt,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0].parent))}_{index}','savedata0'))
                 except:
                     last_msg = await ctx.send('s',ephemeral=False) if istl() else await ctx.channel.send('s')
                     await ctx.send(content= f'<@{ctx.author_id}>. We couldnt decrypt your save, reason\n\n {format_exc()}',ephemeral = False) if istl() else await ctx.channel.send(f'<@{ctx.author_id}>. We couldnt decrypt your save, reason\n\n {format_exc()}')
@@ -1014,7 +1014,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
                 return
 
 
-            new_path_for_save = Path('workspace','new_encrypted_save',f'{make_folder_name_safe(str(file2[0].parent))}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].parts[-2])
+            new_path_for_save = Path('workspace','new_encrypted_save',f'{make_folder_name_safe(str(file2[0].parent))}_{index}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].parts[-2])
             os.makedirs(new_path_for_save,exist_ok=True)
 
             white_file = Path(new_path_for_save,file2[0].name)
@@ -1024,7 +1024,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
 
             await ctx.edit(content = f'{SUCCESS_MSG}\n\nDownloading the decrypted save files from gdrive...') if istl() else ctx.channel.send(content = f'{SUCCESS_MSG}\n\nDownloading the decrypted save files from gdrive...')
 
-            await loop.run_in_executor(None,download_folder,your_files_dec[index][1],Path('workspace','dump_the_dec_save',f'{make_folder_name_safe(str(file2[0].parent))}'),drive_service)
+            await loop.run_in_executor(None,download_folder,your_files_dec[index][1],Path('workspace','dump_the_dec_save',f'{make_folder_name_safe(str(file2[0].parent))}_{index}'),drive_service)
             ftp.cwd('/')
             async with MountSave(ps4,mem,uid,psti,psd) as mp:
                 if not mp:
@@ -1033,7 +1033,7 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
                 if clean_encrypted_file:
                     delete_folder_contents(ftp,'/mnt/sandbox/NPXS20001_000/savedata0')
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nUploading the decrypted save files to {white_file.name}') if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nUploading the decrypted save files to {white_file.name}')
-                await loop.run_in_executor(None,upload_folder_contents,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','dump_the_dec_save',f'{make_folder_name_safe(str(file2[0].parent))}'))
+                await loop.run_in_executor(None,upload_folder_contents,ftp,'/mnt/sandbox/NPXS20001_000/savedata0',Path('workspace','dump_the_dec_save',f'{make_folder_name_safe(str(file2[0].parent))}_{index}'))
                 await ctx.edit(content = f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}',) if istl() else await ctx.channel.send(f'{SUCCESS_MSG}\n\nDoing the resign for {white_file.name}')
                 try:
                     param_sfo = BytesIO()
