@@ -1,6 +1,7 @@
 from os import remove
 from pathlib import Path
 from ftplib import FTP
+from tempfile import TemporaryFile
 
 from .mod_installer import install_mods_to_bigfart
 
@@ -27,8 +28,6 @@ def list_all_files_in_folder_ftp(ftp,source_folder='') -> list[tuple[str,bool]]:
     return filesnfolders
 
 async def installmod2l0lbpxsave(ftp: FTP, loop, mounted_save_dir: str,/,*,ignore_plans = False, **mod_files: Path):
-    mods = (value for _, value in mod_files.items())
-    
     my_save_dir, = {x[0] for x in list_all_files_in_folder_ftp(ftp,mounted_save_dir) if (not x[0].startswith('/mnt/sandbox/NPXS20001_000/savedata0/sce_sys')) and x[1]}
     
     if my_save_dir.split('/')[-1].startswith('bigfart'):
@@ -41,7 +40,7 @@ async def installmod2l0lbpxsave(ftp: FTP, loop, mounted_save_dir: str,/,*,ignore
     with open('bbbbbbbbbbbbbbbbbbbbbbigfart','wb') as bigfart:
         await loop.run_in_executor(None,ftp.retrbinary,f'RETR {my_save_dir}',bigfart.write)
     
-    def x(): install_mods_to_bigfart(Path('bbbbbbbbbbbbbbbbbbbbbbigfart'),mods,install_plans = not ignore_plans, is_ps4_level_backup = is_l0)
+    def x(): install_mods_to_bigfart(Path('bbbbbbbbbbbbbbbbbbbbbbigfart'),mod_files.values(),install_plans = not ignore_plans, is_ps4_level_backup = is_l0)
     
     await loop.run_in_executor(None,x)
     
