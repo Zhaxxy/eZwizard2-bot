@@ -40,6 +40,7 @@ from custom_cheats import shantae_pirate_curse_cheats
 from custom_cheats import black_ops_cold_war
 from custom_cheats import red_dead_redemption_2
 from custom_cheats import littlebigplanet_3
+from custom_cheats import dragon_ball_xenoverse_2
 
 FILE_SIZE_TOTAL_LIMIT = 677_145_600 # 600mb
 ATTACHMENT_MAX_FILE_SIZE = 24_000_000 # 24mb
@@ -838,6 +839,15 @@ red_dead_redemption_2_export = advanced_mode_export.group(name="red_dead_redempt
 @dec_enc_save_files
 async def rdr2_export(ctx: interactions.SlashContext,save_files: str,):
     await _do_dec(ctx,save_files,red_dead_redemption_2.decrypt_save)
+
+# NOTHER GAME
+
+xenoverse_2_export = advanced_mode_export.group(name="xenoverse_2", description="Export decrypted saves from encrypted DRAGON BALL XENOVERSE 2 saves")
+
+@xenoverse_2_export.subcommand(sub_cmd_name="export", sub_cmd_description="Export decrypted saves from encrypted DRAGON BALL XENOVERSE 2 saves")
+@dec_enc_save_files
+async def xeno2_export(ctx: interactions.SlashContext,save_files: str,):
+    await _do_dec(ctx,save_files,dragon_ball_xenoverse_2.decrypt_save)
 ##########################################
 
 advanced_mode_import = interactions.SlashCommand(name="advanced_mode_import", description="Commands to import singular files, usually from savewizard")
@@ -876,6 +886,17 @@ red_dead_redemption_2_import = advanced_mode_import.group(name="red_dead_redempt
 @sw_single_file_dec
 async def rdr2_import(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
     await _do_the_cheats(ctx,save_files,account_id,red_dead_redemption_2.encrypt_save,**cheats_args)
+
+# NOTHER GAME
+
+xenoverse_2_import = advanced_mode_import.group(name="xenoverse_2", description="Import decrypted saves for DRAGON BALL XENOVERSE 2")
+
+@xenoverse_2_import.subcommand(sub_cmd_name="import", sub_cmd_description="Import decrypted saves for DRAGON BALL XENOVERSE 2")
+@cheats_base_save_files
+@resign_saves_option_req
+@sw_single_file_dec
+async def xeno2_import(ctx: interactions.SlashContext,save_files: str,account_id: str, **cheats_args):
+    await _do_the_cheats(ctx,save_files,account_id,dragon_ball_xenoverse_2.encrypt_save,**cheats_args)
 ##########################################
 
 
