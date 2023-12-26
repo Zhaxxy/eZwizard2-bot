@@ -612,61 +612,63 @@ async def resign_discord_command(ctx: interactions.SlashContext, save_files: str
         return
     await ctx.defer()
     sgt()
-    discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
-
-    if account_id == '0':
-        try:
-            account_id = get_user_account_id(ctx.author_id)
-        except KeyError:
-            await ctx.send('You dont have any account id saved to the database!, try running the `/my_account_id` again',ephemeral=False) if istl() else await ctx.channel.send('You dont have any account id saved to the database!, try running the `/my_account_id` again')
-            return
-        
-    try:
-        leh_account_id = AccountID(account_id)
-    except ValueError:
-        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command')
-        return    
-
-    google_drive_link_id = extract_drive_folder_id(save_files)
-    
-    try:
-        folder_name = drive_service.files().get(fileId=google_drive_link_id, fields="name").execute().get('name')
-        your_files = await loop.run_in_executor(None,list_files_in_folder,google_drive_link_id,folder_name)
-    except:
-        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
-        return
-    
-    valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
-
-
-
-    if not valid_saves:
-        await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
-        return
-    
-    if len(valid_saves) > MAX_RESIGNS_PER_ONCE:
-        await ctx.send(f'theres too many saves to resign, we can only do {MAX_RESIGNS_PER_ONCE} per resign command',ephemeral=False) if istl() else await ctx.channel.send(f'theres too many saves to resign, we can only do {MAX_RESIGNS_PER_ONCE} per resign command')
-        return
-    
-    for file,file2 in valid_saves:
-        file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
-        file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
-
-        if int(file_metadata['size']) != 96:
-            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
-            return
-        
-        if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
-            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
-            return
-    
-    await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
-    
-    clean_workspace()
-    # lets go!
     is_bot_in_use = True
-    await update_status()
     try:
+        discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
+
+        if account_id == '0':
+            try:
+                account_id = get_user_account_id(ctx.author_id)
+            except KeyError:
+                await ctx.send('You dont have any account id saved to the database!, try running the `/my_account_id` again',ephemeral=False) if istl() else await ctx.channel.send('You dont have any account id saved to the database!, try running the `/my_account_id` again')
+                return
+            
+        try:
+            leh_account_id = AccountID(account_id)
+        except ValueError:
+            await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command')
+            return    
+
+        google_drive_link_id = extract_drive_folder_id(save_files)
+        
+        try:
+            folder_name = drive_service.files().get(fileId=google_drive_link_id, fields="name").execute().get('name')
+            your_files = await loop.run_in_executor(None,list_files_in_folder,google_drive_link_id,folder_name)
+        except:
+            await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
+            return
+        
+        valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
+
+
+
+        if not valid_saves:
+            await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
+            return
+        
+        if len(valid_saves) > MAX_RESIGNS_PER_ONCE:
+            await ctx.send(f'theres too many saves to resign, we can only do {MAX_RESIGNS_PER_ONCE} per resign command',ephemeral=False) if istl() else await ctx.channel.send(f'theres too many saves to resign, we can only do {MAX_RESIGNS_PER_ONCE} per resign command')
+            return
+        
+        for file,file2 in valid_saves:
+            file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
+            file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
+
+            if int(file_metadata['size']) != 96:
+                await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
+                return
+            
+            if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
+                await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
+                return
+        
+        await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
+        
+        clean_workspace()
+        
+        
+        await update_status()
+        # lets go!
         for index, (file,file2) in enumerate(valid_saves):
             new_path_for_save = Path('workspace','resigned_saves',f'{make_folder_name_safe(str(file2[0].parent))}','PS4','SAVEDATA',f'{leh_account_id!s}',file[0].parts[-2])
             os.makedirs(new_path_for_save, exist_ok=True)
@@ -716,48 +718,50 @@ async def _do_dec(ctx: interactions.SlashContext,save_files: str, extra_decrypt:
         return
     await ctx.defer()
     sgt()
-    discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
-
-    google_drive_link_id = extract_drive_folder_id(save_files)
-    
+    is_bot_in_use = True
     try:
-        folder_name = drive_service.files().get(fileId=google_drive_link_id, fields="name").execute().get('name')
-        your_files = await loop.run_in_executor(None,list_files_in_folder,google_drive_link_id,folder_name)
-    except:
-        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
-        return
-    
-    valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
+        discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
 
-    if not valid_saves:
-        await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
-        return
-    
-    if len(valid_saves) > MAX_RESIGNS_PER_ONCE:
-        await ctx.send(f'theres too many saves to decrypt, we can only do {MAX_RESIGNS_PER_ONCE} per decrypt command',ephemeral=False) if istl() else await ctx.channel.send(f'theres too many saves to decrypt, we can only do {MAX_RESIGNS_PER_ONCE} per decrypt command')
-        return
-    
-    for file,file2 in valid_saves:
-        file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
-        file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
-
-        if int(file_metadata['size']) != 96:
-            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
+        google_drive_link_id = extract_drive_folder_id(save_files)
+        
+        try:
+            folder_name = drive_service.files().get(fileId=google_drive_link_id, fields="name").execute().get('name')
+            your_files = await loop.run_in_executor(None,list_files_in_folder,google_drive_link_id,folder_name)
+        except:
+            await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
             return
         
-        if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
-            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
-            return
-    
-    await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
-    
-    
+        valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
 
-    clean_workspace()
-    # lets go!
-    is_bot_in_use = True
-    await update_status()
-    try:
+        if not valid_saves:
+            await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
+            return
+        
+        if len(valid_saves) > MAX_RESIGNS_PER_ONCE:
+            await ctx.send(f'theres too many saves to decrypt, we can only do {MAX_RESIGNS_PER_ONCE} per decrypt command',ephemeral=False) if istl() else await ctx.channel.send(f'theres too many saves to decrypt, we can only do {MAX_RESIGNS_PER_ONCE} per decrypt command')
+            return
+        
+        for file,file2 in valid_saves:
+            file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
+            file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
+
+            if int(file_metadata['size']) != 96:
+                await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
+                return
+            
+            if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
+                await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
+                return
+        
+        await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
+        
+        
+
+        clean_workspace()
+        
+        is_bot_in_use = True
+        await update_status()
+        # lets go!
         for index, (file,file2) in enumerate(valid_saves):
             os.makedirs(Path('workspace','decrypted_saves',f'{make_folder_name_safe(str(file2[0].parent))}_{index}','savedata0'),exist_ok=True)
             new_path_for_save = Path('workspace','save_to_be_decrypted',f'{make_folder_name_safe(str(file2[0].parent))}_{index}')
@@ -930,99 +934,101 @@ async def do_enc(ctx: interactions.SlashContext,decrypted_save_file: str ,encryp
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
     await ctx.defer()
+    is_bot_in_use = True
     sgt()
-    discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
+    try:
+        discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
 
-    if account_id == '0':
+        if account_id == '0':
+            try:
+                account_id = get_user_account_id(ctx.author_id)
+            except KeyError:
+                await ctx.send('You dont have any account id saved to the database!, try running the `/my_account_id` again',ephemeral=False) if istl() else await ctx.channel.send('You dont have any account id saved to the database!, try running the `/my_account_id` again')
+                return
+
         try:
-            account_id = get_user_account_id(ctx.author_id)
-        except KeyError:
-            await ctx.send('You dont have any account id saved to the database!, try running the `/my_account_id` again',ephemeral=False) if istl() else await ctx.channel.send('You dont have any account id saved to the database!, try running the `/my_account_id` again')
-            return
+            leh_account_id = AccountID(account_id)
+        except ValueError:
+            await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command')
+            return    
 
-    try:
-        leh_account_id = AccountID(account_id)
-    except ValueError:
-        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command')
-        return    
-
-    enc_google_drive_link_id = extract_drive_folder_id(encrypted_save_file)
-    
-    try:
-        folder_name = drive_service.files().get(fileId=enc_google_drive_link_id, fields="name").execute().get('name')
-        your_files = await loop.run_in_executor(None,list_files_in_folder,enc_google_drive_link_id,folder_name)
-    except:
-        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(encrypted_save_file),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(encrypted_save_file))
-        return
-    
-    
-    
-    valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
-    
-    if not valid_saves:
-        await ctx.send(f'the folder {folder_name}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {enc_google_drive_link_id}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
-        return
-    
-    if len(valid_saves) > 1:
-        await ctx.send(f'theres too many saves to encrypt, we can only do {1} per encrypt command',ephemeral=False) if istl else await ctx.channel.send(f'theres too many saves to encrypt, we can only do {1} per encrypt command')
-        return
-
-    dec_google_drive_link_id = extract_drive_folder_id(decrypted_save_file)
-
-    try:        
-        folder_name = drive_service.files().get(fileId=dec_google_drive_link_id, fields="name").execute().get('name')
-        your_files_dec = await loop.run_in_executor(None,list_files_in_folder,dec_google_drive_link_id,folder_name)
-    except:
-        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(dec_google_drive_link_id),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(dec_google_drive_link_id))
-        return
-    
-
-
-    temp_your_files_dec: list[tuple[Path,str]] = []
-    seen_folder_ids = set()
-    for savedata0_folder in your_files_dec:
-        if (savedata0_folder[0].name == 'savedata0') and savedata0_folder[1] not in seen_folder_ids:
-            seen_folder_ids.add(savedata0_folder[1]); temp_your_files_dec.append(savedata0_folder)
-    your_files_dec = temp_your_files_dec
-    
-
-    for savedata0_folder in your_files_dec:
-        file_mime_type = drive_service.files().get(fileId=savedata0_folder[1], fields="mimeType").execute().get('mimeType') 
-        if not 'application/vnd.google-apps.folder' in file_mime_type:
-            your_files_dec.remove(savedata0_folder)
-    
-    if folder_name == 'savedata0':
-        your_files_dec = [(Path(folder_name),dec_google_drive_link_id,)]
-    
-    if not your_files_dec:
-        await ctx.send(f'the folder {decrypted_save_file} did not have any decrypted saves in it, did you get them from a ps4? it needs to be in a savedata0 folder!',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {decrypted_save_file} did not have any decrypted saves in it, did you get them from a ps4? it needs to be in a savedata0 folder!')
-        return
-    
-    if len(your_files_dec) > 1:
-        await ctx.send(f'Theres too many decrypted saves to encrypt, we can only do {1} per encrypt command',ephemeral=False) if istl() else ctx.channel.send(f'Theres too many decrypted saves to encrypt, we can only do {1} per encrypt command')
-        return
-
-    for file,file2 in valid_saves:
-        file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
-        file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
-
-        if int(file_metadata['size']) != 96:
-            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
+        enc_google_drive_link_id = extract_drive_folder_id(encrypted_save_file)
+        
+        try:
+            folder_name = drive_service.files().get(fileId=enc_google_drive_link_id, fields="name").execute().get('name')
+            your_files = await loop.run_in_executor(None,list_files_in_folder,enc_google_drive_link_id,folder_name)
+        except:
+            await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(encrypted_save_file),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(encrypted_save_file))
             return
         
-        if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
-            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
+        
+        
+        valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
+        
+        if not valid_saves:
+            await ctx.send(f'the folder {folder_name}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {enc_google_drive_link_id}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
             return
-    
+        
+        if len(valid_saves) > 1:
+            await ctx.send(f'theres too many saves to encrypt, we can only do {1} per encrypt command',ephemeral=False) if istl else await ctx.channel.send(f'theres too many saves to encrypt, we can only do {1} per encrypt command')
+            return
 
-    
-    await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
-    
-    clean_workspace()
-    # lets go!
-    is_bot_in_use = True
-    await update_status()
-    try:
+        dec_google_drive_link_id = extract_drive_folder_id(decrypted_save_file)
+
+        try:        
+            folder_name = drive_service.files().get(fileId=dec_google_drive_link_id, fields="name").execute().get('name')
+            your_files_dec = await loop.run_in_executor(None,list_files_in_folder,dec_google_drive_link_id,folder_name)
+        except:
+            await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(dec_google_drive_link_id),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(dec_google_drive_link_id))
+            return
+        
+
+
+        temp_your_files_dec: list[tuple[Path,str]] = []
+        seen_folder_ids = set()
+        for savedata0_folder in your_files_dec:
+            if (savedata0_folder[0].name == 'savedata0') and savedata0_folder[1] not in seen_folder_ids:
+                seen_folder_ids.add(savedata0_folder[1]); temp_your_files_dec.append(savedata0_folder)
+        your_files_dec = temp_your_files_dec
+        
+
+        for savedata0_folder in your_files_dec:
+            file_mime_type = drive_service.files().get(fileId=savedata0_folder[1], fields="mimeType").execute().get('mimeType') 
+            if not 'application/vnd.google-apps.folder' in file_mime_type:
+                your_files_dec.remove(savedata0_folder)
+        
+        if folder_name == 'savedata0':
+            your_files_dec = [(Path(folder_name),dec_google_drive_link_id,)]
+        
+        if not your_files_dec:
+            await ctx.send(f'the folder {decrypted_save_file} did not have any decrypted saves in it, did you get them from a ps4? it needs to be in a savedata0 folder!',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {decrypted_save_file} did not have any decrypted saves in it, did you get them from a ps4? it needs to be in a savedata0 folder!')
+            return
+        
+        if len(your_files_dec) > 1:
+            await ctx.send(f'Theres too many decrypted saves to encrypt, we can only do {1} per encrypt command',ephemeral=False) if istl() else ctx.channel.send(f'Theres too many decrypted saves to encrypt, we can only do {1} per encrypt command')
+            return
+
+        for file,file2 in valid_saves:
+            file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
+            file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
+
+            if int(file_metadata['size']) != 96:
+                await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
+                return
+            
+            if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
+                await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
+                return
+        
+
+        
+        await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
+        
+        clean_workspace()
+        
+        
+        await update_status()
+        # lets go!
         result = True
         for index, (file,file2) in enumerate(valid_saves):
 
@@ -1203,71 +1209,73 @@ async def _do_the_cheats(ctx: interactions.SlashContext,save_files: str,account_
         await ctx.send(BOT_IN_USE_MSG,ephemeral=False)
         return
     await ctx.defer()
+    is_bot_in_use = True
     sgt()
-    discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
-    
-    if account_id == '0':
+    try:
+        discord_file_name: str = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
+        
+        if account_id == '0':
+            try:
+                account_id = get_user_account_id(ctx.author_id)
+            except KeyError:
+                await ctx.send('You dont have any account id saved to the database!, try running the `/my_account_id` again',ephemeral=False) if istl() else await ctx.channel.send('You dont have any account id saved to the database!, try running the `/my_account_id` again')
+                return
+        
         try:
-            account_id = get_user_account_id(ctx.author_id)
-        except KeyError:
-            await ctx.send('You dont have any account id saved to the database!, try running the `/my_account_id` again',ephemeral=False) if istl() else await ctx.channel.send('You dont have any account id saved to the database!, try running the `/my_account_id` again')
+            leh_account_id = AccountID(account_id)
+        except ValueError:
+            await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command')
+            return    
+        
+        if save_files == '0':
+            await ctx.send(f'Added the cheat\n```py\n{custom_cheat_function.__name__}(**{cheat_agurments})```\n to the chain!')
+            add_cheat_chain(ctx.author_id,custom_cheat_function,cheat_agurments)
             return
-    
-    try:
-        leh_account_id = AccountID(account_id)
-    except ValueError:
-        await ctx.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command',ephemeral=False) if istl() else await ctx.channel.send(f'{account_id} is not a valid account id, it should be the one in your SAVEDATA folder! Or get it from the `/my_account_id` command')
-        return    
-    
-    if save_files == '0':
-        await ctx.send(f'Added the cheat\n```py\n{custom_cheat_function.__name__}(**{cheat_agurments})```\n to the chain!')
-        add_cheat_chain(ctx.author_id,custom_cheat_function,cheat_agurments)
-        return
-    current_cheat_chain = [(custom_cheat_function,cheat_agurments)]
-    try:
-        current_cheat_chain += get_cheat_chain(ctx.author_id)
-    except KeyError:
-        pass
+        current_cheat_chain = [(custom_cheat_function,cheat_agurments)]
+        try:
+            current_cheat_chain += get_cheat_chain(ctx.author_id)
+        except KeyError:
+            pass
 
 
-    google_drive_link_id = extract_drive_folder_id(save_files)
-    
-    try:
-        folder_name = drive_service.files().get(fileId=google_drive_link_id, fields="name").execute().get('name')
-        your_files = await loop.run_in_executor(None,list_files_in_folder,google_drive_link_id,folder_name)
-    except:
-        await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
-        return
-    
-    valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
-
-    if not valid_saves:
-        await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
-        return
-    
-    if len(valid_saves) > MAX_RESIGNS_PER_ONCE:
-        await ctx.send(f'theres too many saves to apply cheats too we can only do {MAX_RESIGNS_PER_ONCE} per cheat command',ephemeral=False) if istl() else await ctx.channel.send(f'theres too many saves to apply cheats too we can only do {MAX_RESIGNS_PER_ONCE} per cheat command')
-        return
-    
-    for file,file2 in valid_saves:
-        file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
-        file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
-
-        if int(file_metadata['size']) != 96:
-            await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
+        google_drive_link_id = extract_drive_folder_id(save_files)
+        
+        try:
+            folder_name = drive_service.files().get(fileId=google_drive_link_id, fields="name").execute().get('name')
+            your_files = await loop.run_in_executor(None,list_files_in_folder,google_drive_link_id,folder_name)
+        except:
+            await ctx.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files),ephemeral=False) if istl() else await ctx.channel.send(INVALID_GDRIVE_URl_TEMPLATE.format(save_files))
             return
         
-        if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
-            await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
+        valid_saves = [x for x in get_valid_saves_out_names_only(your_files)]
+
+        if not valid_saves:
+            await ctx.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder',ephemeral=False) if istl() else await ctx.channel.send(f'the folder {save_files}. did not have any valid save files in it!, make sure to upload the whole CUSAXXXXX folder')
             return
-    
-    await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
-    
-    clean_workspace()
-    # lets go!
-    is_bot_in_use = True
-    await update_status()
-    try:
+        
+        if len(valid_saves) > MAX_RESIGNS_PER_ONCE:
+            await ctx.send(f'theres too many saves to apply cheats too we can only do {MAX_RESIGNS_PER_ONCE} per cheat command',ephemeral=False) if istl() else await ctx.channel.send(f'theres too many saves to apply cheats too we can only do {MAX_RESIGNS_PER_ONCE} per cheat command')
+            return
+        
+        for file,file2 in valid_saves:
+            file_metadata = drive_service.files().get(fileId=file[1],fields = 'size,name').execute()
+            file_metadata2 = drive_service.files().get(fileId=file2[1],fields = 'size,name').execute()
+
+            if int(file_metadata['size']) != 96:
+                await ctx.send(f'Invalid save bin file {file_metadata["name"]}',ephemeral=False) if istl() else await ctx.channel.send(f'Invalid save bin file {file_metadata["name"]}')
+                return
+            
+            if int(file_metadata2['size']) > FILE_SIZE_TOTAL_LIMIT:
+                await ctx.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?',ephemeral=False) if istl() else await ctx.channel.send(f'{file_metadata2} is too big! {file_metadata2["size"]} bytes, you sure its the right save?')
+                return
+        
+        await ctx.send(SUCCESS_MSG,ephemeral=False) if istl() else await ctx.channel.send(SUCCESS_MSG)
+        
+        clean_workspace()
+        
+        
+        await update_status()
+        # lets go!
         for _,one_cheats_agurments in current_cheat_chain:
             for variable_name, variable in one_cheats_agurments.items():
                 if isinstance(variable,interactions.Attachment):
