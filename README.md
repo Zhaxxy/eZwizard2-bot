@@ -1,3 +1,4 @@
+# eZwizard2-bot is now deprecated and will no longer get updates! please use eZwizard3-bot instead
 # eZwizard2-bot
 A discord bot that connects to your jb ps4 to allow other people to do save things with it
 
